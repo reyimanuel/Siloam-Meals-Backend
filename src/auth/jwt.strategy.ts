@@ -11,8 +11,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             secretOrKey: process.env.JWT_SECRET,
         });
     }
-
+    
     validate(payload: any) {
+        console.log('Decoded JWT Payload:', payload);
         return { id: payload.sub, username: payload.username, role: payload.role };
     }
 }

@@ -25,7 +25,7 @@ model User {
 model Pasien {
   id           Int         @id @default(autoincrement())
   namaPasien        String
-  tempat_tidur String
+  tempatTidur String
   diagnosa     String
   status       Status
   created_at   DateTime    @default(now())
