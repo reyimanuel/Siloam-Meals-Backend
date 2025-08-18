@@ -1,0 +1,103 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  nama     String @unique
+  username String @unique
+  password String
+  email    String @unique
+  role     Role
+}
+
+model Pasien {
+  id           Int         @id @default(autoincrement())
+  namaPasien        String
+  tempat_tidur String
+  diagnosa     String
+  status       Status
+  created_at   DateTime    @default(now())
+  updated_at   DateTime    @updatedAt
+  Pantangan    Pantangan[]
+
+  Pesanan Pesanan[]
+}
+
+model Makanan {
+  id         Int         @id @default(autoincrement())
+  namaMakanan       String
+  jenis      Jenis
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+  Menu       Menu[]
+  Pantangan  Pantangan[]
+
+  Pesanan Pesanan[]
+}
+
+model Menu {
+  id         Int      @id @default(autoincrement())
+  namaMenu   String
+  makananId  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  makanan Makanan @relation(fields: [makananId], references: [id])
+}
+
+model Pantangan {
+  id         Int      @id @default(autoincrement())
+  nama       String
+  pasienId   Int
+  makananId  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  makanan Makanan @relation(fields: [makananId], references: [id])
+  pasien  Pasien  @relation(fields: [pasienId], references: [id])
+}
+
+model Pesanan {
+  id         Int      @id @default(autoincrement())
+  pasienId   Int
+  makananId  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  pasien   Pasien   @relation(fields: [pasienId], references: [id])
+  makanan  Makanan  @relation(fields: [makananId], references: [id])
+}
+
+enum Jenis {
+  Lauk
+  Sayur
+  Karbohidrat
+  Buah
+  Snack
+  Minuman
+}
+
+enum Role {
+  NURSE
+  KITCHEN
+  ADMIN
+  DIETISIEN
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
