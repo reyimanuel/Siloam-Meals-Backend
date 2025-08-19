@@ -4,10 +4,12 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { PasienModule } from './pasien/pasien.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MakananModule } from './makanan/makanan.module';
 
 @Module({
-  imports: [AuthModule, PasienModule, ScheduleModule.forRoot()],
+  imports: [AuthModule, PasienModule, ScheduleModule.forRoot(), MakananModule],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
+ 

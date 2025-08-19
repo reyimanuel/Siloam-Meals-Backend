@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Patch, UseGuards, Request } from '@nestjs/common';
 import { PasienService } from './pasien.service';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -16,23 +16,22 @@ export class PasienController {
     }
 
     @Get()
-    @Roles('ADMIN', 'NURSE')
     findAll() {
         return this.pasienService.findAll();
     }
 
     @Get(':id')
-    @Roles('ADMIN', 'NURSE')
     findOne(@Param('id') id: string) {
         return this.pasienService.findOne(+id);
     }
 
-    @Put(':id')
+    @Patch(':id')
     @Roles('ADMIN', 'NURSE', 'DIETISIEN')
     update(@Param('id') id: string, @Body() data: any, @Request() req: any) {
         return this.pasienService.update(+id, data, req.user.role);
     }
 
+    @Patch('validate/:id')
     @Roles('DIETISIEN') // hanya dietisien yang bisa validasi
     validatePasien(@Param('id') id: string) {
         return this.pasienService.validatePasien(+id);

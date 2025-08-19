@@ -26,9 +26,11 @@ export class PasienService {
     }
 
     async findOne(id: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { id } });
-        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
-        return pasien
+        try {
+            return await this.prisma.pasien.findUniqueOrThrow({ where: { id } });
+        } catch (error) {
+            throw new NotFoundException('Pasien Tidak Ditemukan');
+        }
     }
 
     async update(id: number, data: Prisma.PasienUpdateInput, role: string) {
