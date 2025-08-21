@@ -22,11 +22,13 @@ CREATE TABLE "public"."User" (
 -- CreateTable
 CREATE TABLE "public"."Pasien" (
     "id" SERIAL NOT NULL,
+    "mr" TEXT NOT NULL,
     "namaPasien" TEXT NOT NULL,
     "tempatTidur" TEXT NOT NULL,
     "diagnosa" TEXT NOT NULL,
     "status" "public"."Status" NOT NULL,
     "validate" BOOLEAN NOT NULL DEFAULT false,
+    "link" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "createdBy" INTEGER NOT NULL,
@@ -90,6 +92,9 @@ CREATE UNIQUE INDEX "User_username_key" ON "public"."User"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Pasien_mr_key" ON "public"."Pasien"("mr");
 
 -- AddForeignKey
 ALTER TABLE "public"."Pasien" ADD CONSTRAINT "Pasien_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

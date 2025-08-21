@@ -1,23 +1,34 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
 import { Prisma, Status } from '@prisma/client';
+import * as QRCode from 'qrcode';
 
 @Injectable()
 export class PasienService {
     constructor(private prisma: PrismaService) { }
 
     async create(data: Prisma.PasienUncheckedCreateInput, userId: number) {
+        const link = `${process.env.APP_URL}/pasien/${data.mr}`;
         return this.prisma.pasien.create({
             data: {
                 ...data,
                 status: Status.PENDING,
                 createdBy: userId,
+                link: link
             },
             include: {
                 user: { select: { nama: true } },
                 Pantangan: true,
             },
         });
+    }
+
+    async generateQr( mr:string ) {
+        const pasien = await this.prisma.pasien.findUnique({ where: {mr}});
+        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+
+        const qrCode = await QRCode.toDataURL(pasien.link);
+        return { pasien, qrCode };
     }
 
     async findAll() {

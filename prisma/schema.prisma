@@ -29,13 +29,14 @@ model User {
 }
 
 model Pasien {
-  mr        String    @id
+  id              Int         @id @default(autoincrement())
+  mr              String      @unique
   namaPasien      String
   tempatTidur     String
   diagnosa        String
   status          Status
   validate        Boolean     @default(false)
-  link            String?
+  link            String
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
   createdBy       Int
@@ -57,7 +58,10 @@ model Makanan {
   user        User        @relation(fields: [createdBy], references: [id])
   menu        Menu        @relation(fields: [menuId], references: [id])
   Pantangan   Pantangan[]
-  Pesanan     Pesanan[]
+
+  PesananDetailMakanan PesananDetail[] @relation("PesananDetailMakanan")
+
+  PesananDetailPengganti PesananDetail[] @relation("PesananDetailPengganti")
 }
 
 model Menu {
@@ -74,24 +78,35 @@ model Menu {
 model Pantangan {
   id         Int      @id @default(autoincrement())
   nama       String
-  pasienMR   String
+  pasienId   Int
   makananId  Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   makanan Makanan @relation(fields: [makananId], references: [id])
-  pasien  Pasien  @relation(fields: [pasienMR], references: [mr])
+  pasien  Pasien  @relation(fields: [pasienId], references: [id])
 }
 
 model Pesanan {
   id         Int      @id @default(autoincrement())
-  pasienMR   String
-  makananId  Int
+  pasienId   Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  pasien  Pasien  @relation(fields: [pasienMR], references: [mr])
-  makanan Makanan @relation(fields: [makananId], references: [id])
+  pasien  Pasien  @relation(fields: [pasienId], references: [id])
+  PesananDetail PesananDetail[]
+}
+
+model PesananDetail {
+  id           Int      @id @default(autoincrement())
+  pesananId    Int
+  makananId    Int
+  penggantiId  Int?
+  qty          Int      @default(1)
+
+  pesanan    Pesanan   @relation(fields: [pesananId], references: [id])
+  makanan    Makanan   @relation("PesananDetailMakanan", fields: [makananId], references: [id])
+  pengganti  Makanan?  @relation("PesananDetailPengganti", fields: [penggantiId], references: [id])
 }
 
 enum Jenis {

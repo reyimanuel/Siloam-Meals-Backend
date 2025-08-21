@@ -16,6 +16,12 @@ export class PasienController {
         return this.pasienService.create(data, req.user.id);
     }
 
+    @Get('qr/:mr')
+    @Roles('ADMIN', 'NURSE')
+    generateQr(@Param('mr') mr: string) {
+        return this.pasienService.generateQr(mr);
+    }
+
     @Get()
     async findAll() {
         return this.pasienService.findAll();
