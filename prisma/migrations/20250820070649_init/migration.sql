@@ -26,8 +26,11 @@ CREATE TABLE "public"."Pasien" (
     "tempatTidur" TEXT NOT NULL,
     "diagnosa" TEXT NOT NULL,
     "status" "public"."Status" NOT NULL,
+    "validate" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "createdBy" INTEGER NOT NULL,
+    "validatedBy" INTEGER,
 
     CONSTRAINT "Pasien_pkey" PRIMARY KEY ("id")
 );
@@ -39,6 +42,8 @@ CREATE TABLE "public"."Makanan" (
     "jenis" "public"."Jenis" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "menuId" INTEGER NOT NULL,
+    "createdBy" INTEGER NOT NULL,
 
     CONSTRAINT "Makanan_pkey" PRIMARY KEY ("id")
 );
@@ -47,9 +52,9 @@ CREATE TABLE "public"."Makanan" (
 CREATE TABLE "public"."Menu" (
     "id" SERIAL NOT NULL,
     "namaMenu" TEXT NOT NULL,
-    "makananId" INTEGER NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "createdBy" INTEGER NOT NULL,
 
     CONSTRAINT "Menu_pkey" PRIMARY KEY ("id")
 );
@@ -87,7 +92,19 @@ CREATE UNIQUE INDEX "User_username_key" ON "public"."User"("username");
 CREATE UNIQUE INDEX "User_email_key" ON "public"."User"("email");
 
 -- AddForeignKey
-ALTER TABLE "public"."Menu" ADD CONSTRAINT "Menu_makananId_fkey" FOREIGN KEY ("makananId") REFERENCES "public"."Makanan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."Pasien" ADD CONSTRAINT "Pasien_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Pasien" ADD CONSTRAINT "Pasien_validatedBy_fkey" FOREIGN KEY ("validatedBy") REFERENCES "public"."User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "public"."Menu"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Menu" ADD CONSTRAINT "Menu_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Pantangan" ADD CONSTRAINT "Pantangan_makananId_fkey" FOREIGN KEY ("makananId") REFERENCES "public"."Makanan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

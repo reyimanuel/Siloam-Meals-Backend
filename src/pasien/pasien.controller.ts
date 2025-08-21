@@ -3,6 +3,7 @@ import { PasienService } from './pasien.service';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthGuard } from '@nestjs/passport';
+import { Prisma } from '@prisma/client';
 
 @Controller('pasien')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -11,35 +12,36 @@ export class PasienController {
 
     @Post()
     @Roles('ADMIN', 'NURSE')
-    create(@Body() data: any) {
-        return this.pasienService.create(data);
+    async create(@Body() data: any, @Request() req: any) {
+        return this.pasienService.create(data, req.user.id);
     }
 
     @Get()
-    findAll() {
+    async findAll() {
         return this.pasienService.findAll();
     }
 
     @Get(':id')
-    findOne(@Param('id') id: string) {
+    async findOne(@Param('id') id: string) {
         return this.pasienService.findOne(+id);
     }
 
     @Patch(':id')
-    @Roles('ADMIN', 'NURSE', 'DIETISIEN')
-    update(@Param('id') id: string, @Body() data: any, @Request() req: any) {
-        return this.pasienService.update(+id, data, req.user.role);
+    @Roles('ADMIN', 'NURSE')
+    async update(@Param('id') id: string, @Body() dto: Prisma.PasienUpdateInput, @Request() req: any) {
+        return this.pasienService.update(+id, dto, req.user.role, req.user.id);
     }
 
     @Patch('validate/:id')
     @Roles('DIETISIEN') // hanya dietisien yang bisa validasi
-    validatePasien(@Param('id') id: string) {
-        return this.pasienService.validatePasien(+id);
+    async validatePasien(@Param('id') id: string, @Request() req: any) {
+        const userId = req.user.id;
+        return this.pasienService.validatePasien(+id, userId);
     }
 
     @Delete(':id')
-    @Roles('ADMIN', 'NURSE', 'DIETISIEN')
-    remove(@Param('id') id: string, @Request() req: any) {
-        return this.pasienService.remove(+id, req.user.role);
+    @Roles('ADMIN', 'NURSE')
+    async remove(@Param('id') id: string, @Request() req: any) {
+        return this.pasienService.remove(+id, req.user.role, req.user.id);
     }
 }

@@ -5,15 +5,65 @@ import { Prisma, Status } from '@prisma/client';
 @Injectable()
 export class PasienService {
     constructor(private prisma: PrismaService) { }
-    
-    async create(data: Prisma.PasienCreateInput) {
+
+    async create(data: Prisma.PasienUncheckedCreateInput, userId: number) {
         return this.prisma.pasien.create({
             data: {
-                namaPasien: data.namaPasien,
-                tempatTidur: data.tempatTidur,
-                diagnosa: data.diagnosa,
-                status: 'PENDING',
-                Pantangan: data.Pantangan, // langsung oper nested input
+                ...data,
+                status: Status.PENDING,
+                createdBy: userId,
+            },
+            include: {
+                user: { select: { nama: true } },
+                Pantangan: true,
+            },
+        });
+    }
+
+    async findAll() {
+        return this.prisma.pasien.findMany({
+            include: {
+                user: { select: { nama: true } },
+                Pantangan: true,
+            },
+        });
+    }
+
+    async findOne(id: number) {
+        const pasien = await this.prisma.pasien.findUnique({
+            where: { id },
+            include: {
+                user: { select: { nama: true } },
+                Pantangan: true,
+            },
+        });
+        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+        return pasien;
+    }
+
+    async update(id: number, dto: Prisma.PasienUpdateInput, role: string, userId: number) {
+        const pasien = await this.prisma.pasien.findUnique({ where: { id } });
+        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+
+        // Hanya Admin atau pembuat data yang boleh update
+        if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
+            throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat menghapus');
+        }
+
+        // Jika status masih PENDING -> ADMIN & NURSE boleh update
+        if (pasien.status === 'PENDING') {
+            if (!['ADMIN', 'NURSE'].includes(role)) {
+                throw new ForbiddenException('Hanya Admin atau Nurse yang dapat mengubah data');
+            }
+        } else if (pasien.status === 'ACTIVE') {
+            if (role !== 'ADMIN') {
+                throw new ForbiddenException('Hanya Admin yang dapat mengubah data');
+            }
+        }
+
+        return this.prisma.pasien.update({
+            where: { id }, data: {
+                ...dto
             },
             include: {
                 Pantangan: true,
@@ -21,46 +71,7 @@ export class PasienService {
         });
     }
 
-    findAll() {
-        return this.prisma.pasien.findMany();
-    }
-
-    async findOne(id: number) {
-        try {
-            return await this.prisma.pasien.findUniqueOrThrow({ where: { id } });
-        } catch (error) {
-            throw new NotFoundException('Pasien Tidak Ditemukan');
-        }
-    }
-
-    async update(id: number, data: Prisma.PasienUpdateInput, role: string) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { id } });
-        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
-
-        // Jika status masih PENDING -> ADMIN & NURSE boleh update
-        if (pasien.status === 'PENDING' && !['ADMIN', 'NURSE'].includes(role)) {
-            throw new ForbiddenException('Hanya Admin atau Nurse yang dapat memperbarui saat status pasien pending');
-        }
-
-        // Jika status sudah ACTIVE -> ADMIN & DIETISIEN boleh update
-        if (pasien.status === 'ACTIVE' && !['ADMIN', 'DIETISIEN'].includes(role)) {
-            throw new ForbiddenException('Hanya Admin atau Dietisien yang dapat memperbarui saat status pasien aktif');
-        }
-
-        return this.prisma.pasien.update({
-            where: { id }, data: {
-                namaPasien: data.namaPasien,
-                tempatTidur: data.tempatTidur,
-                diagnosa: data.diagnosa,
-                status: 'PENDING',
-                Pantangan: data.Pantangan, // langsung oper nested input
-            },
-            include: {
-                Pantangan: true,
-            }, });
-    }
-
-    async validatePasien(id: number) {
+    async validatePasien(id: number, userId: number) {
         const pasien = await this.prisma.pasien.findUnique({ where: { id } });
         if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
@@ -70,25 +81,33 @@ export class PasienService {
 
         return this.prisma.pasien.update({
             where: { id },
-            data: { status: 'ACTIVE' },
+            data: { status: 'ACTIVE', validatedBy: userId },
         });
     }
 
-    async remove(id: number, role:string) {
+    async remove(id: number, role: string, userId: number) {
         const pasien = await this.prisma.pasien.findUnique({ where: { id } });
         if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
-        // Jika status masih PENDING -> ADMIN & NURSE boleh hapus
-        if (pasien.status === 'PENDING' && !['ADMIN', 'NURSE'].includes(role)) {
-            throw new ForbiddenException('Hanya Admin atau Nurse yang dapat menghapus data');
+        if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
+            throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat memperbarui');
         }
 
-        // Jika status sudah ACTIVE -> ADMIN & DIETISIEN boleh hapus
-        if (pasien.status === 'ACTIVE' && !['ADMIN', 'DIETISIEN'].includes(role)) {
-            throw new ForbiddenException('Hanya Admin atau Dietisien yang dapat menghapus data');
+        if (pasien.status === 'PENDING') {
+            if (!['ADMIN', 'NURSE'].includes(role)) {
+                throw new ForbiddenException('Hanya Admin atau Nurse yang dapat menghapus data');
+            }
+        } else if (pasien.status === 'ACTIVE') {
+            if (role !== 'ADMIN') {
+                throw new ForbiddenException('Hanya Admin yang dapat menghapus data');
+            }
         }
 
-        return this.prisma.pasien.delete({ where: { id } });
+        // Menghapus data pasien
+        await this.prisma.$transaction([
+            this.prisma.pantangan.deleteMany({ where: { pasienId: id } }),
+            this.prisma.pasien.delete({ where: { id } }),
+        ]);
     }
 
     async activatePendingPasien() {

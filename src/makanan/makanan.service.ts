@@ -1,43 +1,65 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
 export class MakananService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
-  create(dto: Prisma.MakananCreateInput) {
-    return this.prisma.makanan.create({ data: dto });
+  async create(data: Prisma.MakananUncheckedCreateInput, userId: number) {
+    return this.prisma.makanan.create({
+      data: {
+        ...data,
+        createdBy: userId,
+      },
+      include: {
+        user: { select: { nama: true } },
+      },
+    });
   }
 
-  findAll() {
-    return this.prisma.makanan.findMany();
+  async findAll() {
+    return this.prisma.makanan.findMany({
+      include: { 
+        user: { select: { nama: true } } },
+    });
   }
 
-  findOne(id: number) {
-    try {
-      return this.prisma.makanan.findUniqueOrThrow({ where: { id } });
-    } catch (error) {
-      throw new NotFoundException('Makanan Tidak Ditemukan');
+  async findOne(id: number) {
+    const makanan = await this.prisma.makanan.findUnique({
+      where: { id },
+      include: { 
+        user: { select: { nama: true } } 
+      },
+    });
+    if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
+    return makanan;
+  }
+
+  async update(id: number, dto: Prisma.MakananUpdateInput, userId: number, role: string) {
+    const makanan = await this.prisma.makanan.findUnique({ where: { id } });
+    if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
+
+    // Hanya Admin atau pembuat data yang boleh update
+    if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
+      throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat memperbarui');
     }
+
+    return this.prisma.makanan.update({ data: dto, where: { id } });
   }
 
-  update(id: number, dto: Prisma.MakananUpdateInput) {
-    try {
-      return this.prisma.makanan.update({
-        where: { id },
-        data: dto,
-      });
-    } catch (error) {
-      throw new NotFoundException('Makanan Tidak Ditemukan');
-    }
-  }
+  async remove(id: number, userId: number, role: string) {
+    const makanan = await this.prisma.makanan.findUnique({ where: { id } });
+    if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
 
-  remove(id: number) {
-    try {
-      return this.prisma.makanan.delete({ where: { id } });
-    } catch (error) {
-      throw new NotFoundException('Makanan Tidak Ditemukan');
+    // Hanya Admin atau pembuat data yang boleh hapus
+    if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
+      throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat menghapus');
     }
+
+    await this.prisma.$transaction([
+      this.prisma.makanan.delete({ where: { id } })
+    ]);
   }
 }

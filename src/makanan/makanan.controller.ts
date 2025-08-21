@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request } from '@nestjs/common';
 import { MakananService } from './makanan.service';
 import { Prisma } from '@prisma/client';
 import { AuthGuard } from '@nestjs/passport';
@@ -12,29 +12,29 @@ export class MakananController {
 
   @Post()
   @Roles('ADMIN', 'KITCHEN')
-  create(@Body() dto: Prisma.MakananCreateInput) {
-    return this.makananService.create(dto);
+  async create(@Body() data: any, @Request() req: any) {
+    return this.makananService.create(data, req.user.id);
   }
 
   @Get()
-  findAll() {
+  async findAll() {
     return this.makananService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string) {
     return this.makananService.findOne(+id);
   }
 
   @Patch(':id')
   @Roles('ADMIN', 'KITCHEN')
-  update(@Param('id') id: string, @Body() dto: Prisma.MakananUpdateInput) {
-    return this.makananService.update(+id, dto);
+  async update(@Param('id') id: string, @Body() dto: Prisma.MakananUpdateInput, @Request() req: any) {
+    return this.makananService.update(+id, dto, req.user.id, req.user.role);
   }
 
   @Delete(':id')
   @Roles('ADMIN', 'KITCHEN')
-  remove(@Param('id') id: string) {
-    return this.makananService.remove(+id);
+  async remove(@Param('id') id: string, @Request() req: any) {
+    return this.makananService.remove(+id, req.user.id, req.user.role);
   }
 }
