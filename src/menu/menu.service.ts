@@ -13,7 +13,7 @@ export class MenuService {
         createdBy: userId
       },
       include: {
-        user: { select: { nama: true } }
+        user: { select: { namaUser: true } }
       }
      });
   }
@@ -21,7 +21,7 @@ export class MenuService {
   async findAll() {
     return this.prisma.menu.findMany({
       include: {
-        user: { select: { nama: true } }
+        user: { select: { namaUser: true } }
       }
     });
   }
@@ -29,9 +29,9 @@ export class MenuService {
   async findOne(id: number) {
     try {
       return this.prisma.menu.findUniqueOrThrow({
-        where: { id },
+        where: { idMenu : id },
         include: {
-          user: { select: { nama: true } }
+          user: { select: { namaUser: true } }
         }
       });
     } catch (error) {
@@ -40,7 +40,7 @@ export class MenuService {
   }
 
   async update(id: number, updateMenuDto: Prisma.MenuUpdateInput, userId: number, role: string) {
-      const menu = await this.prisma.menu.findUnique({ where: { id } });
+      const menu = await this.prisma.menu.findUnique({ where: { idMenu : id } });
       if (!menu) {
         throw new NotFoundException(`Menu tidak ditemukan`);
       }
@@ -51,14 +51,14 @@ export class MenuService {
       }
 
       return this.prisma.menu.update({
-        where: { id },
+        where: { idMenu : id },
         data: updateMenuDto,
       });
       
   }
 
   async remove(id: number, userId: number, role: string) {
-    const menu = await this.prisma.menu.findUnique({ where: { id } });
+    const menu = await this.prisma.menu.findUnique({ where: { idMenu : id } });
     if (!menu) {
       throw new NotFoundException(`Menu tidak ditemukan`);
     }
@@ -69,7 +69,7 @@ export class MenuService {
     }
 
     await this.prisma.$transaction([
-      this.prisma.menu.delete({ where: { id } }),
+      this.prisma.menu.delete({ where: { idMenu : id } }),
     ]);
   }
 }

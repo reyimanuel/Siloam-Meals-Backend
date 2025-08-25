@@ -2,24 +2,37 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from 'nestjs-prisma';
 import { Prisma, Status } from '@prisma/client';
 import * as QRCode from 'qrcode';
+import { CustomPasienDto } from './custom.dto';
 
 @Injectable()
 export class PasienService {
     constructor(private prisma: PrismaService) { }
 
-    async create(data: Prisma.PasienUncheckedCreateInput, userId: number) {
+    async create(data: CustomPasienDto, userId: number) {
         const link = `${process.env.APP_URL}/pasien/${data.mr}`;
+
         return this.prisma.pasien.create({
             data: {
-                ...data,
-                status: Status.PENDING,
+                namaPasien: data.namaPasien,
+                mr: data.mr,
+                tempatTidur: data.tempatTidur,
+                diagnosa: data.diagnosa,
+                Pantangan: {
+                    create: data.Pantangan?.map((p) => ({
+                        namaPantangan: p.namaPantangan,
+                        makanan: {
+                            connect: { idMakanan: p.makananId } 
+                        }
+                    }))
+                },
+                status: "PENDING",
                 createdBy: userId,
                 link: link
             },
             include: {
-                user: { select: { nama: true } },
-                Pantangan: true,
-            },
+                user: { select: { namaUser: true } },
+                Pantangan: { include: { makanan: true } }
+            }
         });
     }
 
@@ -34,7 +47,7 @@ export class PasienService {
     async findAll() {
         return this.prisma.pasien.findMany({
             include: {
-                user: { select: { nama: true } },
+                user: { select: { namaUser: true } },
                 Pantangan: true,
             },
         });
@@ -42,9 +55,9 @@ export class PasienService {
 
     async findOne(id: number) {
         const pasien = await this.prisma.pasien.findUnique({
-            where: { id },
+            where: { idPasien: id },
             include: {
-                user: { select: { nama: true } },
+                user: { select: { namaUser: true } },
                 Pantangan: true,
             },
         });
@@ -52,8 +65,8 @@ export class PasienService {
         return pasien;
     }
 
-    async update(id: number, dto: Prisma.PasienUpdateInput, role: string, userId: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { id } });
+    async update(id: number, dto: CustomPasienDto, role: string, userId: number) {
+        const pasien = await this.prisma.pasien.findUnique({ where: { idPasien : id } });
         if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
         // Hanya Admin atau pembuat data yang boleh update
@@ -71,19 +84,31 @@ export class PasienService {
                 throw new ForbiddenException('Hanya Admin yang dapat mengubah data');
             }
         }
-
         return this.prisma.pasien.update({
-            where: { id }, data: {
-                ...dto
+            where: { idPasien: id },
+            data: {
+                namaPasien: dto.namaPasien,
+                mr: dto.mr,
+                tempatTidur: dto.tempatTidur,
+                diagnosa: dto.diagnosa,
+                Pantangan: dto.Pantangan
+                    ? {
+                        deleteMany: {},
+                        create: dto.Pantangan.map((p) => ({
+                            namaPantangan: p.namaPantangan,
+                            makanan: { connect: { idMakanan: p.makananId } },
+                        })),
+                    }
+                    : undefined,
             },
             include: {
-                Pantangan: true,
+                Pantangan: { include: { makanan: true } },
             },
         });
     }
 
     async validatePasien(id: number, userId: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { id } });
+        const pasien = await this.prisma.pasien.findUnique({ where: { idPasien: id } });
         if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
         if (pasien.status === 'ACTIVE') {
@@ -91,13 +116,13 @@ export class PasienService {
         }
 
         return this.prisma.pasien.update({
-            where: { id },
+            where: { idPasien: id },
             data: { status: 'ACTIVE', validatedBy: userId },
         });
     }
 
     async remove(id: number, role: string, userId: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { id } });
+        const pasien = await this.prisma.pasien.findUnique({ where: { idPasien: id } });
         if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
         if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
@@ -117,7 +142,7 @@ export class PasienService {
         // Menghapus data pasien
         await this.prisma.$transaction([
             this.prisma.pantangan.deleteMany({ where: { pasienId: id } }),
-            this.prisma.pasien.delete({ where: { id } }),
+            this.prisma.pasien.delete({ where: { idPasien: id } }),
         ]);
     }
 

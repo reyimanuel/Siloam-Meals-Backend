@@ -3,7 +3,7 @@ import { PasienService } from './pasien.service';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { AuthGuard } from '@nestjs/passport';
-import { Prisma } from '@prisma/client';
+import { CustomPasienDto } from './custom.dto';
 
 @Controller('pasien')
 @UseGuards(AuthGuard('jwt'), RolesGuard)
@@ -12,7 +12,7 @@ export class PasienController {
 
     @Post()
     @Roles('ADMIN', 'NURSE')
-    async create(@Body() data: any, @Request() req: any) {
+    async create(@Body() data: CustomPasienDto, @Request() req: any) {
         return this.pasienService.create(data, req.user.id);
     }
 
@@ -34,8 +34,8 @@ export class PasienController {
 
     @Patch(':id')
     @Roles('ADMIN', 'NURSE')
-    async update(@Param('id') id: string, @Body() dto: Prisma.PasienUpdateInput, @Request() req: any) {
-        return this.pasienService.update(+id, dto, req.user.role, req.user.id);
+    async update(@Param('id') id: string, @Body() data: CustomPasienDto, @Request() req: any) {
+        return this.pasienService.update(+id, data, req.user.role, req.user.id);
     }
 
     @Patch('validate/:id')

@@ -1,13 +1,35 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
 export class PesananService {
-  constructor(private prisma: PrismaService) { }  
+  constructor(private prisma: PrismaService) { }
 
-  async create(dto: Prisma.CreatePesananInput) {
-    return 'This action adds a new pesanan';
+  async create(pasienId: number, details: any[]) {
+    return this.prisma.pesanan.create({
+      data: {
+        pasienId,
+        PesananDetail: {
+          create: details.map((d) => ({
+            makananId: d.makananId,
+            penggantiId: d.penggantiId ?? null,
+          })),
+        },
+      },
+      include: {
+        PesananDetail: {
+          include: {
+            makanan: true,
+            pengganti: true,
+          },
+        },
+        pasien: { select: { namaPasien: true } },
+      },
+    });
   }
+
+
 
   // findAll() {
   //   return `This action returns all pesanan`;
@@ -17,7 +39,7 @@ export class PesananService {
   //   return `This action returns a #${id} pesanan`;
   // }
 
-  // update(id: number, updatePesananDto: UpdatePesananDto) {
+  // update(id: number, updatePesanandata: UpdatePesanandata) {
   //   return `This action updates a #${id} pesanan`;
   // }
 

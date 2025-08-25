@@ -14,8 +14,8 @@ datasource db {
 }
 
 model User {
-  id       Int       @id @default(autoincrement())
-  nama     String    @unique
+  idUser   Int       @id @default(autoincrement())
+  namaUser String    @unique
   username String    @unique
   password String
   email    String    @unique
@@ -29,7 +29,7 @@ model User {
 }
 
 model Pasien {
-  id              Int         @id @default(autoincrement())
+  idPasien        Int         @id @default(autoincrement())
   mr              String      @unique
   namaPasien      String
   tempatTidur     String
@@ -41,22 +41,22 @@ model Pasien {
   updated_at      DateTime    @updatedAt
   createdBy       Int
   validatedBy     Int?
-  user            User        @relation("CreatedByUser", fields: [createdBy], references: [id])
-  validatedByUser User?       @relation("ValidatedByUser", fields: [validatedBy], references: [id])
+  user            User        @relation("CreatedByUser", fields: [createdBy], references: [idUser])
+  validatedByUser User?       @relation("ValidatedByUser", fields: [validatedBy], references: [idUser])
   Pantangan       Pantangan[]
   Pesanan         Pesanan[]
 }
 
 model Makanan {
-  id          Int         @id @default(autoincrement())
+  idMakanan   Int         @id @default(autoincrement())
   namaMakanan String
   jenis       Jenis
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
   menuId      Int
   createdBy   Int
-  user        User        @relation(fields: [createdBy], references: [id])
-  menu        Menu        @relation(fields: [menuId], references: [id])
+  user        User        @relation(fields: [createdBy], references: [idUser])
+  menu        Menu        @relation(fields: [menuId], references: [idMenu])
   Pantangan   Pantangan[]
 
   PesananDetailMakanan PesananDetail[] @relation("PesananDetailMakanan")
@@ -65,48 +65,48 @@ model Makanan {
 }
 
 model Menu {
-  id         Int      @id @default(autoincrement())
+  idMenu         Int      @id @default(autoincrement())
   namaMenu   String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   createdBy  Int
-  user       User     @relation(fields: [createdBy], references: [id])
+  user       User     @relation(fields: [createdBy], references: [idUser])
 
   Makanan Makanan[]
 }
 
 model Pantangan {
-  id         Int      @id @default(autoincrement())
-  nama       String
-  pasienId   Int
-  makananId  Int
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  idPantangan   Int      @id @default(autoincrement())
+  namaPantangan String
+  pasienId      Int
+  makananId     Int
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
 
-  makanan Makanan @relation(fields: [makananId], references: [id])
-  pasien  Pasien  @relation(fields: [pasienId], references: [id])
+  makanan Makanan @relation(fields: [makananId], references: [idMakanan])
+  pasien  Pasien  @relation(fields: [pasienId], references: [idPasien])
 }
 
 model Pesanan {
-  id         Int      @id @default(autoincrement())
+  idPesanan  Int      @id @default(autoincrement())
   pasienId   Int
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  pasien  Pasien  @relation(fields: [pasienId], references: [id])
+  pasien        Pasien          @relation(fields: [pasienId], references: [idPasien])
   PesananDetail PesananDetail[]
 }
 
 model PesananDetail {
-  id           Int      @id @default(autoincrement())
-  pesananId    Int
-  makananId    Int
-  penggantiId  Int?
-  qty          Int      @default(1)
+  idPesananDetail          Int  @id @default(autoincrement())
+  pesananId   Int
+  makananId   Int
+  penggantiId Int?
+  qty         Int  @default(1)
 
-  pesanan    Pesanan   @relation(fields: [pesananId], references: [id])
-  makanan    Makanan   @relation("PesananDetailMakanan", fields: [makananId], references: [id])
-  pengganti  Makanan?  @relation("PesananDetailPengganti", fields: [penggantiId], references: [id])
+  pesanan   Pesanan  @relation(fields: [pesananId], references: [idPesanan])
+  makanan   Makanan  @relation("PesananDetailMakanan", fields: [makananId], references: [idMakanan])
+  pengganti Makanan? @relation("PesananDetailPengganti", fields: [penggantiId], references: [idMakanan])
 }
 
 enum Jenis {

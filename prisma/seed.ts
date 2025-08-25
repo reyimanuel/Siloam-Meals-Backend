@@ -10,7 +10,7 @@ async function main() {
         where: { email: 'john@example.com' },
         update: {},
         create: {
-            nama: 'John Doe',
+            namaUser: 'John Doe',
             username: 'john',
             password: hashedPassword,
             role: Role.NURSE,
@@ -22,7 +22,7 @@ async function main() {
         where: { email: 'jane@example.com' },
         update: {},
         create: {
-            nama: 'Jane Doe',
+            namaUser: 'Jane Doe',
             username: 'jane',
             password: hashedPassword,
             role: Role.ADMIN,
@@ -34,7 +34,7 @@ async function main() {
         where: { email: 'jack@example.com' },
         update: {},
         create: {
-            nama: 'Jack Doe',
+            namaUser: 'Jack Doe',
             username: 'jack',
             password: hashedPassword,
             role: Role.KITCHEN,
@@ -46,7 +46,7 @@ async function main() {
         where: { email: 'jessica@example.com' },
         update: {},
         create: {
-            nama: 'Jessica Doe',
+            namaUser: 'Jessica Doe',
             username: 'jessica',
             password: hashedPassword,
             role: Role.DIETISIEN,
@@ -55,85 +55,85 @@ async function main() {
     });
 
     const menu1 = await prisma.menu.upsert({
-        where: { id: 1 },
+        where: { idMenu: 1 },
         update: {},
         create: {
             namaMenu: 'Menu 1',
-            createdBy: user3.id,
+            createdBy: user3.idUser,
         },
     });
 
     const menu2 = await prisma.menu.upsert({
-        where: { id: 2 },
+        where: { idMenu: 2 },
         update: {},
         create: {
             namaMenu: 'Menu 2',
-            createdBy: user3.id,
+            createdBy: user3.idUser,
         },
     });
 
     const menu3 = await prisma.menu.upsert({
-        where: { id: 3 },
+        where: { idMenu: 3 },
         update: {},
         create: {
             namaMenu: 'Menu 3',
-            createdBy: user3.id,
+            createdBy: user3.idUser,
         },
     });
 
     const menu4 = await prisma.menu.upsert({
-        where: { id: 4 },
+        where: { idMenu: 4 },
         update: {},
         create: {
             namaMenu: 'Menu 4',
-            createdBy: user3.id,
+            createdBy: user3.idUser,
         },
     });
 
     const makanan1 = await prisma.makanan.upsert({
-        where: { id: 1 },
+        where: { idMakanan: 1 },
         update: {},
         create: {
             namaMakanan: 'Nasi Putih',
             jenis: Jenis.Karbohidrat,
-            createdBy: user3.id,
-            menuId: menu1.id,
+            createdBy: user3.idUser,
+            menuId: menu1.idMenu,
         },
     });
 
 
     const makanan2 = await prisma.makanan.upsert({
-        where: { id: 2 },
+        where: { idMakanan: 2 },
         update: {},
         create: {
             namaMakanan: 'Ayam Bakar',
             jenis: Jenis.Lauk,
-            createdBy: user3.id,
-            menuId: menu2.id,
+            createdBy: user3.idUser,
+            menuId: menu2.idMenu,
         },
     });
 
 
     const makanan3 = await prisma.makanan.upsert({
-        where: { id: 3 },
+        where: { idMakanan: 3 },
         update: {},
         create: {
             namaMakanan: 'Tuna Goreng',
             jenis: Jenis.Lauk,
-            createdBy: user3.id,
-            menuId: menu3.id,
+            createdBy: user3.idUser,
+            menuId: menu3.idMenu,
         },
     });
 
 
     const makanan4 = await prisma.makanan.upsert({
-        where: { id: 4 },
+        where: { idMakanan: 4 },
         update: {},
         create: {
             namaMakanan: 'Bir Bintang',
             jenis: Jenis.Minuman,
-            createdBy: user3.id,
-            menuId: menu4.id,
+            createdBy: user3.idUser,
+            menuId: menu4.idMenu,
         },
     });
     console.log({ user1, user2, user3, user4, menu1, menu2, menu3, menu4, makanan1, makanan2, makanan3, makanan4 });

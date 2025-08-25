@@ -12,9 +12,10 @@ export class MakananService {
       data: {
         ...data,
         createdBy: userId,
+        menuId: data.menuId
       },
       include: {
-        user: { select: { nama: true } },
+        user: { select: { namaUser: true } },
       },
     });
   }
@@ -22,23 +23,23 @@ export class MakananService {
   async findAll() {
     return this.prisma.makanan.findMany({
       include: { 
-        user: { select: { nama: true } } },
+        user: { select: { namaUser: true } } },
     });
   }
 
   async findOne(id: number) {
     const makanan = await this.prisma.makanan.findUnique({
-      where: { id },
+      where: { idMakanan : id },
       include: { 
-        user: { select: { nama: true } } 
+        user: { select: { namaUser: true } } 
       },
     });
     if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
     return makanan;
   }
 
-  async update(id: number, dto: Prisma.MakananUpdateInput, userId: number, role: string) {
-    const makanan = await this.prisma.makanan.findUnique({ where: { id } });
+  async update(id: number, data: Prisma.MakananUncheckedUpdateInput, userId: number, role: string) {
+    const makanan = await this.prisma.makanan.findUnique({ where: { idMakanan : id } });
     if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
 
     // Hanya Admin atau pembuat data yang boleh update
@@ -46,11 +47,16 @@ export class MakananService {
       throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat memperbarui');
     }
 
-    return this.prisma.makanan.update({ data: dto, where: { id } });
+    return this.prisma.makanan.update({ 
+      data: { 
+        ...data, 
+        menuId : data.menuId
+      }, 
+      where: { idMakanan : id } });
   }
 
   async remove(id: number, userId: number, role: string) {
-    const makanan = await this.prisma.makanan.findUnique({ where: { id } });
+    const makanan = await this.prisma.makanan.findUnique({ where: { idMakanan : id } });
     if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
 
     // Hanya Admin atau pembuat data yang boleh hapus
@@ -59,7 +65,7 @@ export class MakananService {
     }
 
     await this.prisma.$transaction([
-      this.prisma.makanan.delete({ where: { id } })
+      this.prisma.makanan.delete({ where: { idMakanan : id } })
     ]);
   }
 }

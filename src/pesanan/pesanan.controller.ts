@@ -1,9 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { PesananService } from './pesanan.service';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
-import { AuthGuard } from '@nestjs/passport';
-import { Prisma } from '@prisma/client';
 
 
 @Controller('pesanan')
@@ -11,10 +7,10 @@ export class PesananController {
   constructor(private readonly pesananService: PesananService) {}
 
   @Post()
-  async create(@Body() dto: Prisma.PesananCreateInput) {
-    return this.pesananService.create(dto);
+  async create(@Body() body: { pasienId: number; details: any[] }) {
+    return this.pesananService.create(body.pasienId, body.details);
   }
-
+  
   // @Get()
   // async findAll() {
   //   return this.pesananService.findAll();
