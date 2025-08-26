@@ -1,12 +1,9 @@
-import { Controller, Get, Post, Body, Param, Delete, Patch, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Patch, UseGuards, Request, Query } from '@nestjs/common';
 import { PasienService } from './pasien.service';
-import { Roles } from '../auth/roles.decorator';
-import { RolesGuard } from '../auth/roles.guard';
-import { AuthGuard } from '@nestjs/passport';
+import { Public, Roles } from '../auth/roles.decorator';
 import { CustomPasienDto } from './custom.dto';
 
 @Controller('pasien')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class PasienController {
     constructor(private readonly pasienService: PasienService) { }
 
@@ -16,10 +13,16 @@ export class PasienController {
         return this.pasienService.create(data, req.user.id);
     }
 
-    @Get('qr/:mr')
+    @Get('qr/:uuid')
     @Roles('ADMIN', 'NURSE')
-    generateQr(@Param('mr') mr: string) {
-        return this.pasienService.generateQr(mr);
+    async generateQr(@Param('uuid') uuid: string) {
+        return this.pasienService.generateQr(uuid);
+    }
+
+    @Get('link/:uuid')
+    @Public()   
+    async getPasienByLink(@Param('uuid') uuid: string) {
+        return this.pasienService.getPasienByLink(uuid);
     }
 
     @Get()

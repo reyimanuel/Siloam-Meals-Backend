@@ -9,7 +9,14 @@ import { MenuModule } from './menu/menu.module';
 import { PesananModule } from './pesanan/pesanan.module';
 
 @Module({
-  imports: [AuthModule, PasienModule, ScheduleModule.forRoot(), MakananModule, MenuModule, PesananModule],
+  imports: [
+    AuthModule,
+    PasienModule,
+    ScheduleModule.forRoot(),
+    MakananModule,
+    MenuModule,
+    PesananModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

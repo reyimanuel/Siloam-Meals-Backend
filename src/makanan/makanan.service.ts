@@ -1,18 +1,20 @@
 import { Injectable, NotFoundException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
 export class MakananService {
   constructor(private prisma: PrismaService) { }
 
-  async create(data: Prisma.MakananUncheckedCreateInput, userId: number) {
+  async create(data: Prisma.MakananUncheckedCreateInput, file: Express.Multer.File, userId: number) {
+    const imagePath = file ? `/images/${file.filename}` : null;
+
     return this.prisma.makanan.create({
       data: {
         ...data,
         createdBy: userId,
-        menuId: data.menuId
+        menuId: data.menuId,
+         gambar: imagePath
       },
       include: {
         user: { select: { namaUser: true } },

@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
-import { Prisma} from '@prisma/client';
+import { Jenis, Prisma} from '@prisma/client';
 
 @Injectable()
 export class MenuService {
@@ -19,11 +19,32 @@ export class MenuService {
   }
 
   async findAll() {
-    return this.prisma.menu.findMany({
+    const menus = await this.prisma.menu.findMany({
       include: {
-        user: { select: { namaUser: true } }
-      }
+        user: { select: { namaUser: true } },
+        Makanan: {
+          where: { jenis: Jenis.Lauk },
+          select: {
+            idMakanan: true,
+            namaMakanan: true,
+            jenis: true,
+            gambar: true,
+            created_at: true,
+            updated_at: true,
+            menuId: true,
+            createdBy: true,
+          },
+        },
+      },
     });
+
+    return menus.map(menu => ({
+      ...menu,
+      Makanan: menu.Makanan?.map(m => ({
+        ...m,
+        gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
+      })),
+    }));
   }
 
   async findOne(id: number) {

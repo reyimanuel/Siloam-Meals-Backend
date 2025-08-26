@@ -30,13 +30,14 @@ model User {
 
 model Pasien {
   idPasien        Int         @id @default(autoincrement())
+  uuid            String      @unique
   mr              String      @unique
   namaPasien      String
   tempatTidur     String
   diagnosa        String
   status          Status
   validate        Boolean     @default(false)
-  link            String
+  link            String      @unique   
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
   createdBy       Int
@@ -51,6 +52,7 @@ model Makanan {
   idMakanan   Int         @id @default(autoincrement())
   namaMakanan String
   jenis       Jenis
+  gambar      String?
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
   menuId      Int
@@ -65,7 +67,7 @@ model Makanan {
 }
 
 model Menu {
-  idMenu         Int      @id @default(autoincrement())
+  idMenu     Int      @id @default(autoincrement())
   namaMenu   String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

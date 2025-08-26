@@ -7,8 +7,8 @@ export class PesananController {
   constructor(private readonly pesananService: PesananService) {}
 
   @Post()
-  async create(@Body() body: { pasienId: number; details: any[] }) {
-    return this.pesananService.create(body.pasienId, body.details);
+  async create(@Param('link') link: string, @Body('details') details: any[],) {
+    return this.pesananService.create(link, details);
   }
   
   // @Get()

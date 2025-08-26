@@ -1,15 +1,17 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
-import { Prisma, Status } from '@prisma/client';
+import { Status } from '@prisma/client';
 import * as QRCode from 'qrcode';
 import { CustomPasienDto } from './custom.dto';
+import { randomUUID } from 'crypto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class PasienService {
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService, private jwtService: JwtService) { }
 
     async create(data: CustomPasienDto, userId: number) {
-        const link = `${process.env.APP_URL}/pasien/${data.mr}`;
+        const uuid = randomUUID();
 
         return this.prisma.pasien.create({
             data: {
@@ -27,7 +29,8 @@ export class PasienService {
                 },
                 status: "PENDING",
                 createdBy: userId,
-                link: link
+                uuid,
+                link: `${process.env.FRONTEND_URL}/pesanan/${uuid}`
             },
             include: {
                 user: { select: { namaUser: true } },
@@ -36,12 +39,29 @@ export class PasienService {
         });
     }
 
-    async generateQr( mr:string ) {
-        const pasien = await this.prisma.pasien.findUnique({ where: {mr}});
-        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+    async getPasienByLink(uuid: string) {
+        try {
+            const pasien = await this.prisma.pasien.findUnique({
+                where: { uuid },
+                include: { Pantangan: { include: { makanan: true } } },
+            });
 
-        const qrCode = await QRCode.toDataURL(pasien.link);
-        return { pasien, qrCode };
+            if (!pasien) {
+                throw new NotFoundException(`Pasien dengan uuid ${uuid} tidak ditemukan`);
+            }
+
+            return pasien;
+        } catch (err) {
+            throw new UnauthorizedException('error: ' + err.message);
+        }
+    }
+
+    async generateQr(uuid: string): Promise<string> {
+        // URL tujuan Next.js
+        const url = `${process.env.FRONTEND_URL}/pesanan/${uuid}`;
+
+        // Convert ke QR code base64
+        return QRCode.toDataURL(url);
     }
 
     async findAll() {
