@@ -32,32 +32,74 @@ export class MenuService {
             created_at: true,
             updated_at: true,
             menuId: true,
+            utamaDari: true,
             createdBy: true,
           },
         },
       },
     });
 
-    return menus.map(menu => ({
-      ...menu,
-      Makanan: menu.Makanan?.map(m => ({
-        ...m,
-        gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
-      })),
-    }));
+    return menus.map(menu => {
+      const transformedMakanan = menu.Makanan?.map(m => {
+        const utamaDariWithUrl = m.utamaDari?.map(utama => ({
+          ...utama,
+          gambar: utama.gambar ? `${process.env.APP_URL}${utama.gambar}` : utama.gambar,
+        }));
+        return {
+          ...m,
+          gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
+          utamaDari: utamaDariWithUrl,
+        };
+      });
+      return {
+        ...menu,
+        Makanan: transformedMakanan,
+      };
+    });
   }
 
   async findOne(id: number) {
-    try {
-      return this.prisma.menu.findUniqueOrThrow({
-        where: { idMenu : id },
-        include: {
-          user: { select: { namaUser: true } }
-        }
-      });
-    } catch (error) {
+    const menu = await this.prisma.menu.findUnique({
+      where: { idMenu: id },
+      include: {
+        user: { select: { namaUser: true } },
+        Makanan: {
+          where: { jenis: Jenis.Lauk },
+          select: {
+            idMakanan: true,
+            namaMakanan: true,
+            jenis: true,
+            gambar: true,
+            created_at: true,
+            updated_at: true,
+            menuId: true,
+            utamaDari: true,
+            createdBy: true,
+          },
+        },
+      },
+    });
+
+    if (!menu) {
       throw new NotFoundException(`Menu tidak ditemukan`);
     }
+
+    const transformedMakanan = menu.Makanan?.map(m => {
+      const utamaDariWithUrl = m.utamaDari?.map(utama => ({
+        ...utama,
+        gambar: utama.gambar ? `${process.env.APP_URL}${utama.gambar}` : utama.gambar,
+      }));
+      return {
+        ...m,
+        gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
+        utamaDari: utamaDariWithUrl,
+      };
+    });
+
+    return {
+      ...menu,
+      Makanan: transformedMakanan,
+    };
   }
 
   async update(id: number, updateMenuDto: Prisma.MenuUpdateInput, userId: number, role: string) {

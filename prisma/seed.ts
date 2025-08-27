@@ -58,7 +58,7 @@ async function main() {
         where: { idMenu: 1 },
         update: {},
         create: {
-            namaMenu: 'Menu',
+            namaMenu: 'Menu Pagi',
             createdBy: user3.idUser,
         },
     });
@@ -67,7 +67,7 @@ async function main() {
         where: { idMenu: 2 },
         update: {},
         create: {
-            namaMenu: 'Menu',
+            namaMenu: 'Menu Siang',
             createdBy: user3.idUser,
         },
     });
@@ -76,49 +76,25 @@ async function main() {
         where: { idMenu: 3 },
         update: {},
         create: {
-            namaMenu: 'Menu',
+            namaMenu: 'Menu Malam',
             createdBy: user3.idUser,
         },
     });
 
-    const makanan1 = await prisma.makanan.upsert({
+    const telur = await prisma.makanan.upsert({
         where: { idMakanan: 1 },
-        update: {},
-        create: {
-            namaMakanan: 'Nasi Putih',
-            jenis: Jenis.Karbohidrat,
-            createdBy: user3.idUser,
-            menuId: menu1.idMenu,
-            gambar: '/public/nasi-putih.png',
-        },
-    });
-
-    const makanan2 = await prisma.makanan.upsert({
-        where: { idMakanan: 2 },
-        update: {},
-        create: {
-            namaMakanan: 'Nasi Merah',
-            jenis: Jenis.Karbohidrat,
-            createdBy: user3.idUser,
-            menuId: menu1.idMenu,
-            gambar: '/public/nasi-merah.png',
-        },
-    });
-
-    const makanan3 = await prisma.makanan.upsert({
-        where: { idMakanan: 3 },
         update: {},
         create: {
             namaMakanan: 'Telur Dadar',
             jenis: Jenis.Lauk,
             createdBy: user3.idUser,
             menuId: menu1.idMenu,
-            gambar: '/public/telur-dadar.png',
+            gambar: '/public/telur-dadar.png',            
         },
     });
 
-    const makanan4 = await prisma.makanan.upsert({
-        where: { idMakanan: 4 },
+    const ayamKukus = await prisma.makanan.upsert({
+        where: { idMakanan: 2 },
         update: {},
         create: {
             namaMakanan: 'Ayam Kukus',
@@ -129,57 +105,8 @@ async function main() {
         },
     });
 
-    const makanan5 = await prisma.makanan.upsert({
-        where: { idMakanan: 5 },
-        update: {},
-        create: {
-            namaMakanan: 'Kangkung',
-            jenis: Jenis.Sayur,
-            createdBy: user3.idUser,
-            menuId: menu1.idMenu,
-            gambar: '/public/kangkung.png',
-        },
-    });
-
-    const makanan6 = await prisma.makanan.upsert({
-        where: { idMakanan: 6 },
-        update: {},
-        create: {
-            namaMakanan: 'Capcay',
-            jenis: Jenis.Sayur,
-            createdBy: user3.idUser,
-            menuId: menu1.idMenu,
-            gambar: '/public/capcay.png',
-        },
-    });
-
-    // Menu
-    const makanan7 = await prisma.makanan.upsert({
-        where: { idMakanan: 7 },
-        update: {},
-        create: {
-            namaMakanan: 'Nasi Putih',
-            jenis: Jenis.Karbohidrat,
-            createdBy: user3.idUser,
-            menuId: menu2.idMenu,
-            gambar: '/public/nasi-putih.png',
-        },
-    });
-
-    const makanan8 = await prisma.makanan.upsert({
-        where: { idMakanan: 8 },
-        update: {},
-        create: {
-            namaMakanan: 'Kentang Panggang',
-            jenis: Jenis.Karbohidrat,
-            createdBy: user3.idUser,
-            menuId: menu2.idMenu,
-            gambar: '/public/kentang-panggang.png',
-        },
-    });
-
-    const makanan9 = await prisma.makanan.upsert({
-        where: { idMakanan: 9 },
+    const ayamGoreng = await prisma.makanan.upsert({
+        where: { idMakanan: 3 },
         update: {},
         create: {
             namaMakanan: 'Ayam Goreng',
@@ -190,8 +117,8 @@ async function main() {
         },
     });
 
-    const makanan10 = await prisma.makanan.upsert({
-        where: { idMakanan: 10 },
+    const ikanBakar = await prisma.makanan.upsert({
+        where: { idMakanan: 4 },
         update: {},
         create: {
             namaMakanan: 'Ikan Bakar',
@@ -202,57 +129,8 @@ async function main() {
         },
     });
 
-    const makanan11 = await prisma.makanan.upsert({
-        where: { idMakanan: 11 },
-        update: {},
-        create: {
-            namaMakanan: 'Capcay',
-            jenis: Jenis.Sayur,
-            createdBy: user3.idUser,
-            menuId: menu2.idMenu,
-            gambar: '/public/capcay.png',
-        },
-    });
-
-    const makanan12 = await prisma.makanan.upsert({
-        where: { idMakanan: 12 },
-        update: {},
-        create: {
-            namaMakanan: 'Tumis Buncis',
-            jenis: Jenis.Sayur,
-            createdBy: user3.idUser,
-            menuId: menu2.idMenu,
-            gambar: '/public/tumis-buncis.png',
-        },
-    });
-
-    // Menu
-    const makanan13 = await prisma.makanan.upsert({
-        where: { idMakanan: 13 },
-        update: {},
-        create: {
-            namaMakanan: 'Nasi Putih',
-            jenis: Jenis.Karbohidrat,
-            createdBy: user3.idUser,
-            menuId: menu3.idMenu,
-            gambar: '/public/nasi-putih.png',
-        },
-    });
-
-    const makanan14 = await prisma.makanan.upsert({
-        where: { idMakanan: 14 },
-        update: {},
-        create: {
-            namaMakanan: 'Nasi Merah',
-            jenis: Jenis.Karbohidrat,
-            createdBy: user3.idUser,
-            menuId: menu3.idMenu,
-            gambar: '/public/nasi-merah.png',
-        },
-    });
-
-    const makanan15 = await prisma.makanan.upsert({
-        where: { idMakanan: 15 },
+    const supAyam = await prisma.makanan.upsert({
+        where: { idMakanan: 5 },
         update: {},
         create: {
             namaMakanan: 'Sup Ayam',
@@ -263,44 +141,102 @@ async function main() {
         },
     });
 
-    const makanan16 = await prisma.makanan.upsert({
-        where: { idMakanan: 16 },
+    const nasiPutih = await prisma.makanan.upsert({
+        where: { idMakanan: 6 },
         update: {},
         create: {
-            namaMakanan: 'Tahu Bacem',
-            jenis: Jenis.Lauk,
+            namaMakanan: 'Nasi Putih',
+            jenis: Jenis.Karbohidrat,
             createdBy: user3.idUser,
-            menuId: menu3.idMenu,
-            gambar: '/public/tahu-bacem.png',
+            gambar: '/public/nasi-putih.png',
+            punyaUtama: {
+                connect: [{ idMakanan: telur.idMakanan }, { idMakanan: ayamKukus.idMakanan }, { idMakanan: ayamGoreng.idMakanan }, { idMakanan: ikanBakar.idMakanan }, { idMakanan: supAyam.idMakanan },],
+            },
         },
     });
 
-    const makanan17 = await prisma.makanan.upsert({
-        where: { idMakanan: 17 },
+    const nasiMerah = await prisma.makanan.upsert({
+        where: { idMakanan: 7 },
+        update: {},
+        create: {
+            namaMakanan: 'Nasi Merah',
+            jenis: Jenis.Karbohidrat,
+            createdBy: user3.idUser,
+            gambar: '/public/nasi-merah.png',
+        },
+    });
+
+    const kentangPanggang = await prisma.makanan.upsert({
+        where: { idMakanan: 8 },
+        update: {},
+        create: {
+            namaMakanan: 'Kentang Panggang',
+            jenis: Jenis.Karbohidrat,
+            createdBy: user3.idUser,
+            gambar: '/public/kentang-panggang.png',
+        },
+    });
+
+    const kangkung = await prisma.makanan.upsert({
+        where: { idMakanan: 9 },
+        update: {},
+        create: {
+            namaMakanan: 'Kangkung',
+            jenis: Jenis.Sayur,
+            createdBy: user3.idUser,
+            gambar: '/public/kangkung.png',
+            punyaUtama: {
+                connect: [{ idMakanan: telur.idMakanan }, { idMakanan: ayamKukus.idMakanan }, { idMakanan: ayamGoreng.idMakanan }, { idMakanan: ikanBakar.idMakanan }, { idMakanan: supAyam.idMakanan },],
+            },
+        },
+    });
+
+    const capcay = await prisma.makanan.upsert({
+        where: { idMakanan: 10 },
+        update: {},
+        create: {
+            namaMakanan: 'Capcay',
+            jenis: Jenis.Sayur,
+            createdBy: user3.idUser,
+            gambar: '/public/capcay.png',
+        },
+    });
+
+    const tumisBuncis = await prisma.makanan.upsert({
+        where: { idMakanan: 11 },
+        update: {},
+        create: {
+            namaMakanan: 'Tumis Buncis',
+            jenis: Jenis.Sayur,
+            createdBy: user3.idUser,
+            gambar: '/public/tumis-buncis.png',
+        },
+    });
+
+    const SayurAsem = await prisma.makanan.upsert({
+        where: { idMakanan: 12 },
         update: {},
         create: {
             namaMakanan: 'Sayur Asem',
             jenis: Jenis.Sayur,
             createdBy: user3.idUser,
-            menuId: menu3.idMenu,
             gambar: '/public/sayur-asem.png',
         },
     });
 
-    const makanan18 = await prisma.makanan.upsert({
-        where: { idMakanan: 18 },
+    const lalapan = await prisma.makanan.upsert({
+        where: { idMakanan: 13 },
         update: {},
         create: {
             namaMakanan: 'Lalapan',
             jenis: Jenis.Sayur,
             createdBy: user3.idUser,
-            menuId: menu3.idMenu,
             gambar: '/public/lalapan.png',
         },
     });
 
 
-    console.log({ user1, user2, user3, user4, menu1, menu2, menu3, makanan1, makanan2, makanan3, makanan4, makanan5, makanan6, makanan7 });
+    console.log({ user1, user2, user3, user4, menu1, menu2, menu3, telur, ayamKukus, ayamGoreng, ikanBakar, supAyam, nasiPutih, nasiMerah, kentangPanggang, kangkung, capcay, tumisBuncis, SayurAsem, lalapan });
 }
 
 main()

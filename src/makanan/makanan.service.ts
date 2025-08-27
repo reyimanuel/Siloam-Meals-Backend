@@ -23,21 +23,31 @@ export class MakananService {
   }
 
   async findAll() {
-    return this.prisma.makanan.findMany({
+    const makanans = await this.prisma.makanan.findMany({
       include: { 
         user: { select: { namaUser: true } } },
     });
+
+    return makanans.map(utama => ({
+      ...utama,
+      gambar: utama.gambar ? `${process.env.APP_URL}${utama.gambar}` : utama.gambar,
+    }));
   }
 
   async findOne(id: number) {
     const makanan = await this.prisma.makanan.findUnique({
-      where: { idMakanan : id },
-      include: { 
-        user: { select: { namaUser: true } } 
+      where: { idMakanan: id }, 
+      include: {
+        user: { select: { namaUser: true } }
       },
     });
+
     if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
-    return makanan;
+
+    return {
+      ...makanan,
+      gambar: makanan.gambar ? `${process.env.APP_URL}${makanan.gambar}` : makanan.gambar,
+    };
   }
 
   async update(id: number, data: Prisma.MakananUncheckedUpdateInput, userId: number, role: string) {

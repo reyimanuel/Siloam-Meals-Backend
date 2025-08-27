@@ -37,7 +37,7 @@ model Pasien {
   diagnosa        String
   status          Status
   validate        Boolean     @default(false)
-  link            String      @unique   
+  link            String      @unique
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
   createdBy       Int
@@ -55,15 +55,16 @@ model Makanan {
   gambar      String?
   created_at  DateTime    @default(now())
   updated_at  DateTime    @updatedAt
-  menuId      Int
+  menuId      Int?
   createdBy   Int
   user        User        @relation(fields: [createdBy], references: [idUser])
-  menu        Menu        @relation(fields: [menuId], references: [idMenu])
+  menu        Menu?       @relation(fields: [menuId], references: [idMenu])
   Pantangan   Pantangan[]
 
   PesananDetailMakanan PesananDetail[] @relation("PesananDetailMakanan")
 
-  PesananDetailPengganti PesananDetail[] @relation("PesananDetailPengganti")
+  utamaDari  Makanan[] @relation("UtamaRelasi")
+  punyaUtama Makanan[] @relation("UtamaRelasi")
 }
 
 model Menu {
@@ -92,6 +93,8 @@ model Pantangan {
 model Pesanan {
   idPesanan  Int      @id @default(autoincrement())
   pasienId   Int
+  sesi       String
+  tanggal    DateTime
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -100,15 +103,12 @@ model Pesanan {
 }
 
 model PesananDetail {
-  idPesananDetail          Int  @id @default(autoincrement())
-  pesananId   Int
-  makananId   Int
-  penggantiId Int?
-  qty         Int  @default(1)
+  idPesananDetail Int  @id @default(autoincrement())
+  pesananId       Int
+  makananId       Int
 
   pesanan   Pesanan  @relation(fields: [pesananId], references: [idPesanan])
   makanan   Makanan  @relation("PesananDetailMakanan", fields: [makananId], references: [idMakanan])
-  pengganti Makanan? @relation("PesananDetailPengganti", fields: [penggantiId], references: [idMakanan])
 }
 
 enum Jenis {

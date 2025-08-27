@@ -1,18 +1,39 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Jenis, Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
 export class PesananService {
   constructor(private prisma: PrismaService) { }
 
-  async create(link: string, details: any[]) {
+  async create(uuid: string, sesi: string, details: any[]) {
     const pasien = await this.prisma.pasien.findUnique({
-      where: { link },
+      where: { uuid },
       include: { Pantangan: true },
     });
 
-    if (!pasien) throw new NotFoundException("Pasien tidak ditemukan");
+    if (!pasien) {
+      throw new NotFoundException('Pasien tidak ditemukan');
+    }
+
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0); // reset jam ke 00:00:00
+
+    const existingPesanan = await this.prisma.pesanan.findFirst({
+      where: {
+        pasienId: pasien.idPasien,
+        tanggal: tomorrow,
+        sesi: sesi, // pagi / siang / malam
+      },
+    });
+
+    if (existingPesanan) {
+      throw new BadRequestException(
+        `Pasien sudah memiliki pesanan untuk sesi ${sesi} pada tanggal ${tomorrow.toLocaleDateString()}`
+      );
+    }
 
     // Ambil daftar makanan pantangan pasien
     const pantanganIds = pasien.Pantangan.map((p) => p.makananId);
@@ -27,14 +48,15 @@ export class PesananService {
           .join(", ")}`
       );
     }
-    
+
     return this.prisma.pesanan.create({
       data: {
         pasienId: pasien.idPasien,
+        tanggal: tomorrow,
+        sesi: sesi,
         PesananDetail: {
           create: details.map((d) => ({
-            makananId: d.makananId,
-            penggantiId: d.penggantiId ?? null,
+            makananId: d.makananId, // hanya makananId
           })),
         },
       },
@@ -42,7 +64,6 @@ export class PesananService {
         PesananDetail: {
           include: {
             makanan: true,
-            pengganti: true,
           },
         },
         pasien: { select: { namaPasien: true } },
@@ -50,10 +71,96 @@ export class PesananService {
     });
   }
 
+  async findMenu(uuid: string) {
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { uuid },
+      include: { Pantangan: true },
+    });
 
-  // findAll() {
-  //   return `This action returns all pesanan`;
-  // }
+    if (!pasien) throw new NotFoundException("Pasien tidak ditemukan");
+
+    const pantanganIds = pasien.Pantangan.map(p => p.makananId);
+
+    const menus = await this.prisma.menu.findMany({
+      include: {
+        user: { select: { namaUser: true } },
+        Makanan: {
+          where: {
+            jenis: Jenis.Lauk,
+            idMakanan: {
+              notIn: pantanganIds
+            },
+          },
+          select: {
+            idMakanan: true,
+            namaMakanan: true,
+            jenis: true,
+            gambar: true,
+            created_at: true,
+            updated_at: true,
+            menuId: true,
+            utamaDari: true,
+            createdBy: true,
+          },
+        },
+      },
+    });
+
+    return menus.map(menu => {
+      const transformedMakanan = menu.Makanan?.map(m => {
+        const utamaDariWithUrl = m.utamaDari?.map(utama => ({
+          ...utama,
+          gambar: utama.gambar ? `${process.env.APP_URL}${utama.gambar}` : utama.gambar,
+        }));
+        return {
+          ...m,
+          gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
+          utamaDari: utamaDariWithUrl,
+        };
+      });
+      return {
+        ...menu,
+        Makanan: transformedMakanan,
+      };
+    });
+  }
+
+  async findMakanan(uuid: string) {
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { uuid },
+      include: { Pantangan: true },
+    });
+
+    if (!pasien) throw new NotFoundException("Pasien tidak ditemukan");
+
+    const pantanganIds = pasien.Pantangan.map(p => p.makananId);
+
+    const makanan = await this.prisma.makanan.findMany({
+      where: {
+        idMakanan: {
+          notIn: pantanganIds
+        },
+      },
+    });
+
+    return makanan.map(m => ({
+      ...m,
+      gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
+    }));
+  }
+
+  findPesananPasien(uuid: string) {
+    return this.prisma.pesanan.findMany({
+      where: { pasien: { uuid } },
+      include: {
+        PesananDetail: {
+          include: {
+            makanan: true,
+          },
+        },
+      },
+    });
+  }
 
   // findOne(id: number) {
   //   return `This action returns a #${id} pesanan`;
@@ -67,3 +174,4 @@ export class PesananService {
   //   return `This action removes a #${id} pesanan`;
   // }
 }
+

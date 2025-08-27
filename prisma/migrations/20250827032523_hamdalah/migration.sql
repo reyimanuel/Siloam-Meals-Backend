@@ -46,7 +46,7 @@ CREATE TABLE "public"."Makanan" (
     "gambar" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    "menuId" INTEGER NOT NULL,
+    "menuId" INTEGER,
     "createdBy" INTEGER NOT NULL,
 
     CONSTRAINT "Makanan_pkey" PRIMARY KEY ("idMakanan")
@@ -79,6 +79,8 @@ CREATE TABLE "public"."Pantangan" (
 CREATE TABLE "public"."Pesanan" (
     "idPesanan" SERIAL NOT NULL,
     "pasienId" INTEGER NOT NULL,
+    "sesi" TEXT NOT NULL,
+    "tanggal" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -90,10 +92,16 @@ CREATE TABLE "public"."PesananDetail" (
     "idPesananDetail" SERIAL NOT NULL,
     "pesananId" INTEGER NOT NULL,
     "makananId" INTEGER NOT NULL,
-    "penggantiId" INTEGER,
-    "qty" INTEGER NOT NULL DEFAULT 1,
 
     CONSTRAINT "PesananDetail_pkey" PRIMARY KEY ("idPesananDetail")
+);
+
+-- CreateTable
+CREATE TABLE "public"."_UtamaRelasi" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_UtamaRelasi_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -114,6 +122,9 @@ CREATE UNIQUE INDEX "Pasien_mr_key" ON "public"."Pasien"("mr");
 -- CreateIndex
 CREATE UNIQUE INDEX "Pasien_link_key" ON "public"."Pasien"("link");
 
+-- CreateIndex
+CREATE INDEX "_UtamaRelasi_B_index" ON "public"."_UtamaRelasi"("B");
+
 -- AddForeignKey
 ALTER TABLE "public"."Pasien" ADD CONSTRAINT "Pasien_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("idUser") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -124,7 +135,7 @@ ALTER TABLE "public"."Pasien" ADD CONSTRAINT "Pasien_validatedBy_fkey" FOREIGN K
 ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("idUser") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "public"."Menu"("idMenu") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "public"."Menu"("idMenu") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Menu" ADD CONSTRAINT "Menu_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("idUser") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -145,4 +156,7 @@ ALTER TABLE "public"."PesananDetail" ADD CONSTRAINT "PesananDetail_pesananId_fke
 ALTER TABLE "public"."PesananDetail" ADD CONSTRAINT "PesananDetail_makananId_fkey" FOREIGN KEY ("makananId") REFERENCES "public"."Makanan"("idMakanan") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."PesananDetail" ADD CONSTRAINT "PesananDetail_penggantiId_fkey" FOREIGN KEY ("penggantiId") REFERENCES "public"."Makanan"("idMakanan") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."_UtamaRelasi" ADD CONSTRAINT "_UtamaRelasi_A_fkey" FOREIGN KEY ("A") REFERENCES "public"."Makanan"("idMakanan") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."_UtamaRelasi" ADD CONSTRAINT "_UtamaRelasi_B_fkey" FOREIGN KEY ("B") REFERENCES "public"."Makanan"("idMakanan") ON DELETE CASCADE ON UPDATE CASCADE;
