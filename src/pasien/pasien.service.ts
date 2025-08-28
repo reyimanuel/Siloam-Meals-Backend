@@ -11,32 +11,54 @@ export class PasienService {
     constructor(private prisma: PrismaService, private jwtService: JwtService) { }
 
     async create(data: CustomPasienDto, userId: number) {
+        // Validasi: semua field wajib diisi kecuali Pantangan
+        const { namaPasien, mr, tempatTidur, diagnosa } = data;
+        if (![namaPasien, mr, tempatTidur, diagnosa].every((f) =>
+            f !== undefined && f !== null && (typeof f === 'string' ? f.trim().length > 0 : true)
+        )) {
+            throw new BadRequestException('Semua data harus diisi kecuali data pantangan');
+        }
+
+        // Cek konflik MR terlebih dahulu
+        const existing = await this.prisma.pasien.findFirst({ where: { mr: data.mr } });
+        if (existing) {
+            throw new BadRequestException(`MR ${data.mr} sudah digunakan oleh pasien dengan nama ${existing.namaPasien}`);
+        }
+
         const uuid = randomUUID();
 
-        return this.prisma.pasien.create({
-            data: {
-                namaPasien: data.namaPasien,
-                mr: data.mr,
-                tempatTidur: data.tempatTidur,
-                diagnosa: data.diagnosa,
-                Pantangan: {
-                    create: data.Pantangan?.map((p) => ({
-                        namaPantangan: p.namaPantangan,
-                        makanan: {
-                            connect: { idMakanan: p.makananId } 
-                        }
-                    }))
+        try {
+            return await this.prisma.pasien.create({
+                data: {
+                    namaPasien: data.namaPasien,
+                    mr: data.mr,
+                    tempatTidur: data.tempatTidur,
+                    diagnosa: data.diagnosa,
+                    Pantangan: {
+                        create: data.Pantangan?.map((p) => ({
+                            namaPantangan: p.namaPantangan,
+                            makanan: {
+                                connect: { idMakanan: p.makananId },
+                            },
+                        })),
+                    },
+                    status: "PENDING",
+                    createdBy: userId,
+                    uuid,
+                    link: `${process.env.FRONTEND_URL}/pesanan/${uuid}`,
                 },
-                status: "PENDING",
-                createdBy: userId,
-                uuid,
-                link: `${process.env.FRONTEND_URL}/pesanan/${uuid}`
-            },
-            include: {
-                user: { select: { namaUser: true } },
-                Pantangan: { include: { makanan: true } }
+                include: {
+                    user: { select: { namaUser: true } },
+                    Pantangan: { include: { makanan: true } },
+                },
+            });
+        } catch (err) {
+            // Tangani potensi error unique constraint dari Prisma (race condition)
+            if ((err)?.code === 'P2002') {
+                throw new BadRequestException('MR sudah digunakan');
             }
-        });
+            throw err;
+        }
     }
 
     async getPasienByLink(uuid: string) {
@@ -56,19 +78,17 @@ export class PasienService {
         }
     }
 
-    async generateQr(uuid: string): Promise<string> {
-        // URL tujuan Next.js
+    async generateQr(uuid: string): Promise<{ qrCodeUrl: string }> {
         const url = `${process.env.FRONTEND_URL}/pesanan/${uuid}`;
-
-        // Convert ke QR code base64
-        return QRCode.toDataURL(url);
+        const dataUrl = await QRCode.toDataURL(url);
+        return { qrCodeUrl: dataUrl };
     }
 
     async findAll() {
         return this.prisma.pasien.findMany({
             include: {
                 user: { select: { namaUser: true } },
-                Pantangan: true,
+                Pantangan: { include: { makanan: true } },
             },
         });
     }
@@ -146,16 +166,16 @@ export class PasienService {
         if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
         if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
-            throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat memperbarui');
+            throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat menghapus data ini');
         }
 
         if (pasien.status === 'PENDING') {
             if (!['ADMIN', 'NURSE'].includes(role)) {
-                throw new ForbiddenException('Hanya Admin atau Nurse yang dapat menghapus data');
+                throw new ForbiddenException('Hanya Admin atau Nurse yang dapat menghapus data ini');
             }
         } else if (pasien.status === 'ACTIVE') {
             if (role !== 'ADMIN') {
-                throw new ForbiddenException('Hanya Admin yang dapat menghapus data');
+                throw new ForbiddenException('Status pasien sudah aktif, hanya Admin yang dapat menghapus data ini');
             }
         }
 

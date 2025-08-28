@@ -9,7 +9,7 @@ export class AuthService {
         private prisma: PrismaService,
         private jwtService: JwtService,
     ) { }
-    
+
     async validateUser(username: string, password: string) {
         const user = await this.prisma.user.findUnique({ where: { username } });
         if (!user) throw new UnauthorizedException('User not found');
@@ -29,4 +29,4 @@ export class AuthService {
             access_token: this.jwtService.sign(payload),
         };
     }
-    }
+}
