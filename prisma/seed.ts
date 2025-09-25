@@ -89,7 +89,14 @@ async function main() {
             jenis: Jenis.Lauk,
             createdBy: user3.idUser,
             menuId: menu1.idMenu,
-            gambar: '/public/telur-dadar.png',            
+            gambar: '/public/telur-dadar.png', 
+            tanggalTersedia: {
+                create: [
+                    { tanggal: new Date('2025-09-01') },
+                    { tanggal: new Date('2025-09-05') },
+                    { tanggal: new Date('2025-09-10') },
+                ],
+            },           
         },
     });
 
@@ -102,6 +109,13 @@ async function main() {
             createdBy: user3.idUser,
             menuId: menu1.idMenu,
             gambar: '/public/ayam-kukus.png',
+            tanggalTersedia: {
+                create: [
+                    { tanggal: new Date('2025-09-02') },
+                    { tanggal: new Date('2025-09-06') },
+                    { tanggal: new Date('2025-09-11') },
+                ],
+            },
         },
     });
 
@@ -114,6 +128,13 @@ async function main() {
             createdBy: user3.idUser,
             menuId: menu2.idMenu,
             gambar: '/public/ayam-goreng.png',
+            tanggalTersedia: {
+                create: [
+                    { tanggal: new Date('2025-09-03') },
+                    { tanggal: new Date('2025-09-07') },
+                    { tanggal: new Date('2025-09-12') },
+                ],
+            },
         },
     });
 
@@ -126,6 +147,13 @@ async function main() {
             createdBy: user3.idUser,
             menuId: menu2.idMenu,
             gambar: '/public/ikan-bakar.png',
+            tanggalTersedia: {
+                create: [
+                    { tanggal: new Date('2025-09-04') },
+                    { tanggal: new Date('2025-09-08') },
+                    { tanggal: new Date('2025-09-13') },
+                ],
+            },
         },
     });
 
@@ -138,6 +166,13 @@ async function main() {
             createdBy: user3.idUser,
             menuId: menu3.idMenu,
             gambar: '/public/sup-ayam.png',
+            tanggalTersedia: {
+                create: [
+                    { tanggal: new Date('2025-09-05') },
+                    { tanggal: new Date('2025-09-09') },
+                    { tanggal: new Date('2025-09-14') },
+                ],
+            },
         },
     });
 

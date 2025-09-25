@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Jenis, Prisma } from '@prisma/client';
+import { Jenis } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
@@ -153,6 +153,19 @@ export class PesananService {
     return this.prisma.pesanan.findMany({
       where: { pasien: { uuid } },
       include: {
+        PesananDetail: {
+          include: {
+            makanan: true,
+          },
+        },
+      },
+    });
+  }
+
+  findAll() {
+    return this.prisma.pesanan.findMany({
+      include: {
+        pasien: { select: { namaPasien: true } },
         PesananDetail: {
           include: {
             makanan: true,

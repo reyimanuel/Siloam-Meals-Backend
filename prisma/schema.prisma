@@ -63,8 +63,16 @@ model Makanan {
 
   PesananDetailMakanan PesananDetail[] @relation("PesananDetailMakanan")
 
-  utamaDari  Makanan[] @relation("UtamaRelasi")
-  punyaUtama Makanan[] @relation("UtamaRelasi")
+  utamaDari       Makanan[]         @relation("UtamaRelasi")
+  punyaUtama      Makanan[]         @relation("UtamaRelasi")
+  tanggalTersedia TanggalTersedia[]
+}
+
+model TanggalTersedia {
+  idTanggal Int       @id @default(autoincrement())
+  tanggal   DateTime
+  makananId Int
+  makanan   Makanan @relation(fields: [makananId], references: [idMakanan])
 }
 
 model Menu {
@@ -103,12 +111,12 @@ model Pesanan {
 }
 
 model PesananDetail {
-  idPesananDetail Int  @id @default(autoincrement())
+  idPesananDetail Int @id @default(autoincrement())
   pesananId       Int
   makananId       Int
 
-  pesanan   Pesanan  @relation(fields: [pesananId], references: [idPesanan])
-  makanan   Makanan  @relation("PesananDetailMakanan", fields: [makananId], references: [idMakanan])
+  pesanan Pesanan @relation(fields: [pesananId], references: [idPesanan])
+  makanan Makanan @relation("PesananDetailMakanan", fields: [makananId], references: [idMakanan])
 }
 
 enum Jenis {

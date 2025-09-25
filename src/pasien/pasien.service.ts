@@ -79,8 +79,11 @@ export class PasienService {
     }
 
     async generateQr(uuid: string): Promise<{ qrCodeUrl: string }> {
-        const url = `${process.env.FRONTEND_URL}/pesanan/${uuid}`;
-        const dataUrl = await QRCode.toDataURL(url);
+        const pasien = await this.prisma.pasien.findUnique({ where: { uuid } });
+        if (!pasien || !pasien.link) {
+            throw new NotFoundException(`Pasien dengan uuid ${uuid} tidak ditemukan atau tidak memiliki link`);
+        }
+        const dataUrl = await QRCode.toDataURL(pasien.link);
         return { qrCodeUrl: dataUrl };
     }
 

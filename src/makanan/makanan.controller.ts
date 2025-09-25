@@ -1,11 +1,10 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Request, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { MakananService } from './makanan.service';
-import { Prisma } from '@prisma/client';
 import { Public, Roles } from 'src/auth/roles.decorator';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { UpdateMakananDto } from './custom.dto';
+import { MakananDto } from './custom.dto';
 
 @Controller('makanan')
 export class MakananController {
@@ -13,8 +12,7 @@ export class MakananController {
 
   @Post()
   @Roles('ADMIN', 'KITCHEN')
-  @UseInterceptors(
-    FileInterceptor('gambar', {
+  @UseInterceptors( FileInterceptor('gambar', {
       storage: diskStorage({
         destination: './public',
         filename: (req, file, cb) => {
@@ -24,12 +22,7 @@ export class MakananController {
       }),
     }),
   )
-  async create(@UploadedFile() file: Express.Multer.File, @Body() body: any, @Request() req: any,) {
-    const sampinganIds = body.sampinganIds ? JSON.parse(body.sampinganIds) : [];
-
-    const data: Prisma.MakananUncheckedCreateInput & { sampinganIds?: number[] } =
-    {...body, menuId: Number(body.menuId), harga: body.harga ? Number(body.harga) : undefined, sampinganIds,};
-
+  async create(@UploadedFile() file: Express.Multer.File, @Body() data: MakananDto, @Request() req: any,) {
     return this.makananService.create(data, file, req.user.id);
   }
 
@@ -48,10 +41,22 @@ export class MakananController {
 
   @Patch(':id')
   @Roles('ADMIN', 'KITCHEN')
-  @UseInterceptors(FileInterceptor('gambar')) // field form-data "gambar"
+  @UseInterceptors(
+    FileInterceptor('gambar', {
+      storage: diskStorage({
+        destination: './public',
+        filename: (req, file, cb) => {
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const ext = extname(file.originalname);
+          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+        },
+      }),
+    }),
+  )
   async update(
     @Param('id') id: string,
-    @Body() dto: UpdateMakananDto,
+    @Body() dto: MakananDto,
     @UploadedFile() file: Express.Multer.File,
     @Request() req: any,
   ) {

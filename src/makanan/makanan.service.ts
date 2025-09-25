@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
-import { UpdateMakananDto } from './custom.dto';
+import { MakananDto } from './custom.dto';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 
@@ -9,35 +9,48 @@ import { join } from 'path';
 export class MakananService {
   constructor(private prisma: PrismaService) { }
 
-  async create(data: Prisma.MakananUncheckedCreateInput & { sampinganIds?: number[] }, file: Express.Multer.File, userId: number) {
-    const imagePath = file ? `/public/${file.filename}` : null;
-
-    const sampinganIds = data.sampinganIds || [];
+  async create(
+    dto: MakananDto & { utamaDariIds?: number[] },
+    file: Express.Multer.File,
+    userId: number,
+  ) {
+    const gambarUrl = file ? `/public/${file.filename}` : null;
 
     return this.prisma.makanan.create({
-      // Bangun objek 'data' secara eksplisit, tanpa spread operator
       data: {
-        namaMakanan: data.namaMakanan,
-        jenis: data.jenis,
-        gambar: imagePath,
+        namaMakanan: dto.namaMakanan,
+        jenis: dto.jenis,
+        gambar: gambarUrl,
         createdBy: userId,
-        menuId: data.menuId ? Number(data.menuId) : null,
-        utamaDari: {
-          connect: sampinganIds.map(id => ({ idMakanan: Number(id) })),
-        },
+        menuId: dto.menuId ? Number(dto.menuId) : null,
+        ...(dto.utamaDariIds?.length && {
+          utamaDari: {
+            connect: dto.utamaDariIds.map((id) => ({ idMakanan: Number(id) })),
+          },
+        }),
+        ...(dto.tanggalTersedia?.length && {
+          tanggalTersedia: {
+            create: dto.tanggalTersedia.map((tgl) => ({
+              tanggal: new Date(tgl),
+            })),
+          },
+        }),
       },
       include: {
         user: { select: { namaUser: true } },
         utamaDari: true,
+        tanggalTersedia: true,
       },
     });
   }
+
 
   async findAll() {
     const makanans = await this.prisma.makanan.findMany({
       include: {
         user: { select: { namaUser: true } },
         utamaDari: true, // ambil array makanan utama
+        tanggalTersedia: true,
       },
     });
 
@@ -56,7 +69,9 @@ export class MakananService {
     const makanan = await this.prisma.makanan.findUnique({
       where: { idMakanan: id }, 
       include: {
-        user: { select: { namaUser: true } }
+        user: { select: { namaUser: true } },
+        utamaDari: true,
+        tanggalTersedia: true,
       },
     });
 
@@ -68,14 +83,23 @@ export class MakananService {
     };
   }
 
-  async update(id: number, dto: UpdateMakananDto, file: Express.Multer.File, userId: number, role: string,) {
+  async update(
+    id: number,
+    dto: MakananDto & { utamaDariIds?: number[] },
+    file: Express.Multer.File,
+    userId: number,
+    role: string,
+  ) {
     const makanan = await this.prisma.makanan.findUnique({
       where: { idMakanan: id },
+      include: { tanggalTersedia: true },
     });
     if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
 
     if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
-      throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat memperbarui');
+      throw new ForbiddenException(
+        'Hanya Admin atau pembuat data yang dapat memperbarui',
+      );
     }
 
     let gambarUrl: string | undefined;
@@ -88,52 +112,65 @@ export class MakananService {
           console.warn('Gagal hapus gambar lama:', err.message);
         }
       }
-
       gambarUrl = `/public/${file.filename}`;
     }
 
     return this.prisma.makanan.update({
       where: { idMakanan: id },
       data: {
-        ...(dto.namaMakanan ? { namaMakanan: dto.namaMakanan } : {}),
-        ...(dto.jenis ? { jenis: dto.jenis as any } : {}),
-        ...(dto.menuId ? { menuId: Number(dto.menuId) } : {}),
-        ...(dto.punyaUtamaId
-          ? {
-            punyaUtama: {
-              set: [{ idMakanan: Number(dto.punyaUtamaId) }],
-            },
-          }
-          : {}),
-        ...(gambarUrl ? { gambar: gambarUrl } : {}),
+        ...(dto.namaMakanan && { namaMakanan: dto.namaMakanan }),
+        ...(dto.jenis && { jenis: dto.jenis }),
+        ...(dto.menuId && { menuId: Number(dto.menuId) }),
+        ...(dto.utamaDariIds?.length && {
+          utamaDari: {
+            set: dto.utamaDariIds.map((id) => ({ idMakanan: Number(id) })),
+          },
+        }),
+        ...(gambarUrl && { gambar: gambarUrl }),
+        ...(dto.tanggalTersedia?.length && {
+          tanggalTersedia: {
+            deleteMany: {}, // hapus semua tanggal lama
+            create: dto.tanggalTersedia.map((tgl) => ({
+              tanggal: new Date(tgl),
+            })),
+          },
+        }),
+      },
+      include: {
+        user: { select: { namaUser: true } },
+        utamaDari: true,
+        tanggalTersedia: true,
       },
     });
   }
 
+
   async remove(id: number, userId: number, role: string) {
-    const makanan = await this.prisma.makanan.findUnique({ where: { idMakanan : id } });
-    if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
-
-    // Hanya Admin atau pembuat data yang boleh hapus
-    if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
-      throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat menghapus');
-    }
-
-    if (makanan.gambar) {
-      const filePath = join(process.cwd(), 'public', 'uploads', makanan.gambar);
-      try {
-        await unlink(filePath);
-      } catch (err) {
-        if (err.code !== 'ENOENT') {
-          throw err;
-        }
-      }
-    }
-
-    await this.prisma.makanan.delete({
+    const makanan = await this.prisma.makanan.findUnique({
       where: { idMakanan: id },
     });
 
-    return { message: 'Makanan berhasil dihapus' };
+    if (!makanan) {
+      throw new NotFoundException('Makanan Tidak Ditemukan');
+    }
+
+    if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
+      throw new ForbiddenException(
+        'Hanya Admin atau pembuat data yang dapat menghapus',
+      );
+    }
+
+    if (makanan.gambar) {
+      const filePath = join(process.cwd(), makanan.gambar.replace(/^\//, ''));
+      try {
+        await unlink(filePath);
+      } catch (err) {
+        console.warn('Gagal hapus gambar fisik:', err.message);
+      }
+    }
+
+    return this.prisma.makanan.delete({
+      where: { idMakanan: id },
+    });
   }
 }

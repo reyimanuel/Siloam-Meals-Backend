@@ -31,10 +31,11 @@ export class PesananController {
     return this.pesananService.findPesananPasien(uuid);
   }
 
-  // @Get()
-  // async findAll() {
-  //   return this.pesananService.findAll();
-  // }
+  @Get()
+  @Public()
+  async findAll() {
+    return this.pesananService.findAll();
+  }
 
   // @Get(':id')
   // async findOne(@Param('id') id: string) {

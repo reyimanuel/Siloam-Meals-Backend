@@ -53,6 +53,15 @@ CREATE TABLE "public"."Makanan" (
 );
 
 -- CreateTable
+CREATE TABLE "public"."TanggalTersedia" (
+    "idTanggal" SERIAL NOT NULL,
+    "tanggal" TIMESTAMP(3) NOT NULL,
+    "makananId" INTEGER NOT NULL,
+
+    CONSTRAINT "TanggalTersedia_pkey" PRIMARY KEY ("idTanggal")
+);
+
+-- CreateTable
 CREATE TABLE "public"."Menu" (
     "idMenu" SERIAL NOT NULL,
     "namaMenu" TEXT NOT NULL,
@@ -136,6 +145,9 @@ ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_createdBy_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "public"."Makanan" ADD CONSTRAINT "Makanan_menuId_fkey" FOREIGN KEY ("menuId") REFERENCES "public"."Menu"("idMenu") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."TanggalTersedia" ADD CONSTRAINT "TanggalTersedia_makananId_fkey" FOREIGN KEY ("makananId") REFERENCES "public"."Makanan"("idMakanan") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."Menu" ADD CONSTRAINT "Menu_createdBy_fkey" FOREIGN KEY ("createdBy") REFERENCES "public"."User"("idUser") ON DELETE RESTRICT ON UPDATE CASCADE;
