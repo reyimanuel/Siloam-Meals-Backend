@@ -1,13 +1,18 @@
-import { Injectable, NotFoundException, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+  ForbiddenException,
+} from '@nestjs/common';
+import { Jenis, Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
-import { MakananDto } from './custom.dto';
+import { MakananDto, SimpleMakananDto } from './custom.dto'; // Import DTO baru
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 
 @Injectable()
 export class MakananService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(
     dto: MakananDto & { utamaDariIds?: number[] },
@@ -44,6 +49,26 @@ export class MakananService {
     });
   }
 
+  // Fungsi baru untuk membuat makanan secara sederhana
+  async createSimple(dto: SimpleMakananDto, userId: number) {
+    const newMakanan = await this.prisma.makanan.create({
+      data: {
+        namaMakanan: dto.namaMakanan,
+        jenis: dto.jenis,
+        createdBy: userId,
+      },
+    });
+    // Mengembalikan format yang konsisten dengan findAll untuk frontend
+    return {
+      idMakanan: newMakanan.idMakanan,
+      namaMakanan: newMakanan.namaMakanan,
+      jenis: newMakanan.jenis,
+      gambar: null,
+      createdBy: '', // Atau fetch nama user jika diperlukan
+      utamaDari: [],
+      tanggalTersedia: [],
+    };
+  }
 
   async findAll() {
     const makanans = await this.prisma.makanan.findMany({
@@ -54,20 +79,23 @@ export class MakananService {
       },
     });
 
-    return makanans.map(m => ({
-      ...m,
+    return makanans.map((m) => ({
+      idMakanan: m.idMakanan,
+      namaMakanan: m.namaMakanan,
+      jenis: m.jenis,
       gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
-      utamaDari: m.utamaDari.map(u => ({
+      utamaDari: m.utamaDari.map((u) => ({
         ...u,
         gambar: u.gambar ? `${process.env.APP_URL}${u.gambar}` : u.gambar,
       })),
+      tanggalTersedia: m.tanggalTersedia,
+      createdBy: m.user.namaUser,
     }));
   }
 
-
   async findOne(id: number) {
     const makanan = await this.prisma.makanan.findUnique({
-      where: { idMakanan: id }, 
+      where: { idMakanan: id },
       include: {
         user: { select: { namaUser: true } },
         utamaDari: true,
@@ -79,7 +107,9 @@ export class MakananService {
 
     return {
       ...makanan,
-      gambar: makanan.gambar ? `${process.env.APP_URL}${makanan.gambar}` : makanan.gambar,
+      gambar: makanan.gambar
+        ? `${process.env.APP_URL}${makanan.gambar}`
+        : makanan.gambar,
     };
   }
 
@@ -143,7 +173,6 @@ export class MakananService {
       },
     });
   }
-
 
   async remove(id: number, userId: number, role: string) {
     const makanan = await this.prisma.makanan.findUnique({

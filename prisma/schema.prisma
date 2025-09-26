@@ -29,23 +29,25 @@ model User {
 }
 
 model Pasien {
-  idPasien        Int         @id @default(autoincrement())
-  uuid            String      @unique
-  mr              String      @unique
-  namaPasien      String
-  tempatTidur     String
-  diagnosa        String
-  status          Status
-  validate        Boolean     @default(false)
-  link            String      @unique
-  created_at      DateTime    @default(now())
-  updated_at      DateTime    @updatedAt
-  createdBy       Int
-  validatedBy     Int?
-  user            User        @relation("CreatedByUser", fields: [createdBy], references: [idUser])
+  idPasien      Int         @id @default(autoincrement())
+  uuid          String      @unique
+  noKtp         String?     @unique // Ditambahkan
+  tanggalLahir  DateTime?   // Ditambahkan
+  mr            String      @unique
+  namaPasien    String
+  ruanganInap   String      @default("default_value") // with default
+  diagnosa      String
+  status        Status
+  validate      Boolean     @default(false)
+  link          String      @unique
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  createdBy     Int
+  validatedBy   Int?
+  user          User        @relation("CreatedByUser", fields: [createdBy], references: [idUser])
   validatedByUser User?       @relation("ValidatedByUser", fields: [validatedBy], references: [idUser])
-  Pantangan       Pantangan[]
-  Pesanan         Pesanan[]
+  Pantangan     Pantangan[]
+  Pesanan       Pesanan[]
 }
 
 model Makanan {
