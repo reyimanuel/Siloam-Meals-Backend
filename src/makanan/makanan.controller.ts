@@ -6,95 +6,99 @@ import {
   Patch,
   Param,
   Delete,
-  Request,
   UseInterceptors,
   UploadedFile,
+  Req,
 } from '@nestjs/common';
 import { MakananService } from './makanan.service';
-import { Public, Roles } from 'src/auth/roles.decorator';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { MakananDto, SimpleMakananDto } from './custom.dto';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
+import { MakananDto, CreateSimpleMakananDto } from './custom.dto';
 
+// @UseGuards(JwtGuard) sudah dihapus karena tidak diperlukan (menggunakan global guard)
 @Controller('makanan')
 export class MakananController {
   constructor(private readonly makananService: MakananService) {}
 
+  @Roles(Role.ADMIN, Role.KITCHEN)
   @Post()
-  @Roles('ADMIN', 'KITCHEN')
   @UseInterceptors(
     FileInterceptor('gambar', {
       storage: diskStorage({
         destination: './public',
         filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          cb(null, `${randomName}${extname(file.originalname)}`);
         },
       }),
     }),
   )
-  async create(
+  create(
+    @Body() dto: MakananDto,
     @UploadedFile() file: Express.Multer.File,
-    @Body() data: MakananDto,
-    @Request() req: any,
+    @Req() req,
   ) {
-    return this.makananService.create(data, file, req.user.id);
+    const userId = req.user.id;
+    return this.makananService.create(dto, file, userId);
   }
 
-  // Endpoint baru untuk perawat
+  // Endpoint sederhana untuk Perawat
+  @Roles(Role.ADMIN, Role.NURSE, Role.KITCHEN)
   @Post('simple')
-  @Roles('ADMIN', 'NURSE', 'KITCHEN')
-  async createSimple(@Body() data: SimpleMakananDto, @Request() req: any) {
-    return this.makananService.createSimple(data, req.user.id);
+  createSimple(@Body() dto: CreateSimpleMakananDto, @Req() req) {
+    // Perbaiki tipe DTO di sini
+    const userId = req.user.id;
+    return this.makananService.createSimple(dto, userId);
   }
 
-  @Public()
   @Get()
-  async findAll() {
+  findAll() {
     return this.makananService.findAll();
   }
 
-  @Public()
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string) {
     return this.makananService.findOne(+id);
   }
 
+  @Roles(Role.ADMIN, Role.KITCHEN)
   @Patch(':id')
-  @Roles('ADMIN', 'KITCHEN')
   @UseInterceptors(
     FileInterceptor('gambar', {
       storage: diskStorage({
         destination: './public',
         filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+          const randomName = Array(32)
+            .fill(null)
+            .map(() => Math.round(Math.random() * 16).toString(16))
+            .join('');
+          cb(null, `${randomName}${extname(file.originalname)}`);
         },
       }),
     }),
   )
-  async update(
+  update(
     @Param('id') id: string,
     @Body() dto: MakananDto,
     @UploadedFile() file: Express.Multer.File,
-    @Request() req: any,
+    @Req() req,
   ) {
-    return this.makananService.update(
-      +id,
-      dto,
-      file,
-      req.user.id,
-      req.user.role,
-    );
+    const userId = req.user.id;
+    const role = req.user.role;
+    return this.makananService.update(+id, dto, file, userId, role);
   }
 
+  @Roles(Role.ADMIN, Role.KITCHEN)
   @Delete(':id')
-  @Roles('ADMIN', 'KITCHEN')
-  async remove(@Param('id') id: string, @Request() req: any) {
-    return this.makananService.remove(+id, req.user.id, req.user.role);
+  remove(@Param('id') id: string, @Req() req) {
+    const userId = req.user.id;
+    const role = req.user.role;
+    return this.makananService.remove(+id, userId, role);
   }
 }

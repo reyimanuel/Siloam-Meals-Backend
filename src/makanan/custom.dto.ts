@@ -19,9 +19,8 @@ export class MakananDto {
   jenis: Jenis;
 
   @IsArray()
-  @IsOptional() // Made optional for simple creation
   @IsDateString({}, { each: true })
-  tanggalTersedia?: string[];
+  tanggalTersedia: string[];
 
   @IsOptional()
   @Transform(({ value }) => (value ? Number(value) : null))
@@ -40,8 +39,8 @@ export class MakananDto {
   utamaDariIds?: number[];
 }
 
-// DTO baru untuk penambahan makanan sederhana oleh perawat
-export class SimpleMakananDto {
+// Nama kelas diubah dari SimpleMakananDto menjadi CreateSimpleMakananDto
+export class CreateSimpleMakananDto {
   @IsString()
   @IsNotEmpty()
   namaMakanan: string;

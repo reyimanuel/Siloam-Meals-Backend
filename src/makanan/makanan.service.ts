@@ -4,15 +4,29 @@ import {
   InternalServerErrorException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Jenis, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
-import { MakananDto, SimpleMakananDto } from './custom.dto'; // Import DTO baru
+import { MakananDto, CreateSimpleMakananDto } from './custom.dto'; // Import DTO baru
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 
 @Injectable()
 export class MakananService {
   constructor(private prisma: PrismaService) {}
+
+  // Fungsi baru untuk menangani pembuatan makanan sederhana oleh perawat
+  async createSimple(dto: CreateSimpleMakananDto, userId: number) {
+    return this.prisma.makanan.create({
+      data: {
+        namaMakanan: dto.namaMakanan,
+        jenis: dto.jenis,
+        createdBy: userId,
+      },
+      include: {
+        user: { select: { namaUser: true } },
+      },
+    });
+  }
 
   async create(
     dto: MakananDto & { utamaDariIds?: number[] },
@@ -49,47 +63,22 @@ export class MakananService {
     });
   }
 
-  // Fungsi baru untuk membuat makanan secara sederhana
-  async createSimple(dto: SimpleMakananDto, userId: number) {
-    const newMakanan = await this.prisma.makanan.create({
-      data: {
-        namaMakanan: dto.namaMakanan,
-        jenis: dto.jenis,
-        createdBy: userId,
-      },
-    });
-    // Mengembalikan format yang konsisten dengan findAll untuk frontend
-    return {
-      idMakanan: newMakanan.idMakanan,
-      namaMakanan: newMakanan.namaMakanan,
-      jenis: newMakanan.jenis,
-      gambar: null,
-      createdBy: '', // Atau fetch nama user jika diperlukan
-      utamaDari: [],
-      tanggalTersedia: [],
-    };
-  }
-
   async findAll() {
     const makanans = await this.prisma.makanan.findMany({
       include: {
         user: { select: { namaUser: true } },
-        utamaDari: true, // ambil array makanan utama
+        utamaDari: true,
         tanggalTersedia: true,
       },
     });
 
     return makanans.map((m) => ({
-      idMakanan: m.idMakanan,
-      namaMakanan: m.namaMakanan,
-      jenis: m.jenis,
+      ...m,
       gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
       utamaDari: m.utamaDari.map((u) => ({
         ...u,
         gambar: u.gambar ? `${process.env.APP_URL}${u.gambar}` : u.gambar,
       })),
-      tanggalTersedia: m.tanggalTersedia,
-      createdBy: m.user.namaUser,
     }));
   }
 

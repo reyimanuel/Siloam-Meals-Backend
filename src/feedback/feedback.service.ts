@@ -15,7 +15,6 @@ export class FeedbackService {
     pengirimId: number,
     pengirimRole: string,
   ) {
-    // Menambahkan pengecekan peran secara manual di dalam service
     if (pengirimRole !== 'DIETISIEN') {
       throw new ForbiddenException(
         'Hanya Dietisien yang dapat mengirim feedback.',
@@ -30,7 +29,6 @@ export class FeedbackService {
       throw new NotFoundException('Pasien tidak ditemukan');
     }
 
-    // Penerima feedback adalah perawat yang membuat data pasien
     const penerimaId = pasien.createdBy;
 
     return this.prisma.feedback.create({
@@ -53,13 +51,27 @@ export class FeedbackService {
     });
   }
 
-  async resolve(id: number) {
+  async resolve(id: number, userId: number, userRole: string) {
+    // Pengecekan peran manual untuk memastikan hanya perawat yang bisa mengakses
+    if (userRole !== 'NURSE') {
+      throw new ForbiddenException(
+        'Hanya perawat yang dapat menyelesaikan feedback.',
+      );
+    }
+
     const feedback = await this.prisma.feedback.findUnique({
       where: { idFeedback: id },
     });
 
     if (!feedback) {
       throw new NotFoundException('Feedback tidak ditemukan');
+    }
+
+    // Pengecekan tambahan: pastikan perawat yang login adalah penerima feedback
+    if (feedback.penerimaId !== userId) {
+      throw new ForbiddenException(
+        'Anda tidak berhak menyelesaikan feedback ini.',
+      );
     }
 
     return this.prisma.feedback.update({

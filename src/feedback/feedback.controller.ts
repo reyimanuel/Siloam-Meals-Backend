@@ -19,12 +19,12 @@ export class FeedbackController {
   @Roles('DIETISIEN')
   create(@Body() createFeedbackDto: CreateFeedbackDto, @Request() req: any) {
     const pengirimId = req.user.id;
-    const pengirimRole = req.user.role; // Mengambil peran dari request
+    const pengirimRole = req.user.role;
     return this.feedbackService.create(
       createFeedbackDto,
       pengirimId,
       pengirimRole,
-    ); // Mengirim peran ke service
+    );
   }
 
   @Get('pasien/:pasienId')
@@ -35,7 +35,9 @@ export class FeedbackController {
 
   @Patch(':id/resolve')
   @Roles('NURSE')
-  resolve(@Param('id') id: string) {
-    return this.feedbackService.resolve(+id);
+  resolve(@Param('id') id: string, @Request() req: any) {
+    const userId = req.user.id; // Mengambil ID perawat yang login
+    const userRole = req.user.role; // Mengambil peran perawat yang login
+    return this.feedbackService.resolve(+id, userId, userRole); // Mengirim ID dan peran ke service
   }
 }
