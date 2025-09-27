@@ -26,6 +26,9 @@ model User {
 
   Pasien          Pasien[] @relation("CreatedByUser")
   validatedByUser Pasien[] @relation("ValidatedByUser")
+
+  FeedbackSent     Feedback[] @relation("FeedbackSender")
+  FeedbackReceived Feedback[] @relation("FeedbackReceiver")
 }
 
 model Pasien {
@@ -48,6 +51,7 @@ model Pasien {
   validatedByUser User?       @relation("ValidatedByUser", fields: [validatedBy], references: [idUser])
   Pantangan     Pantangan[]
   Pesanan       Pesanan[]
+  Feedback        Feedback[]
 }
 
 model Makanan {
@@ -120,6 +124,21 @@ model PesananDetail {
   pesanan Pesanan @relation(fields: [pesananId], references: [idPesanan])
   makanan Makanan @relation("PesananDetailMakanan", fields: [makananId], references: [idMakanan])
 }
+
+model Feedback {
+  idFeedback    Int      @id @default(autoincrement())
+  pasienId      Int
+  pengirimId    Int
+  penerimaId    Int
+  pesan         String
+  isResolved    Boolean  @default(false)
+  created_at    DateTime @default(now())
+  
+  pasien   Pasien @relation(fields: [pasienId], references: [idPasien])
+  pengirim User   @relation("FeedbackSender", fields: [pengirimId], references: [idUser])
+  penerima User   @relation("FeedbackReceiver", fields: [penerimaId], references: [idUser])
+}
+
 
 enum Jenis {
   Lauk
