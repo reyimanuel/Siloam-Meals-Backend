@@ -1,15 +1,19 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Jenis } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
 export class PesananService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async create(uuid: string, sesi: string, details: any[]) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { uuid },
-      include: { Pantangan: true },
+      include: { Pantangan: true, PengecualianMakanan: true },
     });
 
     if (!pasien) {
@@ -31,21 +35,24 @@ export class PesananService {
 
     if (existingPesanan) {
       throw new BadRequestException(
-        `Pasien sudah memiliki pesanan untuk sesi ${sesi} pada tanggal ${tomorrow.toLocaleDateString()}`
+        `Pasien sudah memiliki pesanan untuk sesi ${sesi} pada tanggal ${tomorrow.toLocaleDateString()}`,
       );
     }
 
-    // Ambil daftar makanan pantangan pasien
-    const pantanganIds = pasien.Pantangan.map((p) => p.makananId);
+    // Gabungkan pantangan umum dan pengecualian spesifik dari dietisien
+    const pantanganIds = new Set([
+      ...pasien.Pantangan.map((p) => p.makananId),
+      ...pasien.PengecualianMakanan.map((p) => p.makananId),
+    ]);
 
     // Cek apakah ada makanan yang dipesan masuk dalam pantangan
-    const forbidden = details.filter((d) => pantanganIds.includes(d.makananId));
+    const forbidden = details.filter((d) => pantanganIds.has(d.makananId));
 
     if (forbidden.length > 0) {
       throw new BadRequestException(
         `Pesanan tidak valid. Pasien memiliki pantangan terhadap makanan dengan ID: ${forbidden
           .map((f) => f.makananId)
-          .join(", ")}`
+          .join(', ')}`,
       );
     }
 
@@ -74,12 +81,16 @@ export class PesananService {
   async findMenu(uuid: string) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { uuid },
-      include: { Pantangan: true },
+      include: { Pantangan: true, PengecualianMakanan: true },
     });
 
-    if (!pasien) throw new NotFoundException("Pasien tidak ditemukan");
+    if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
-    const pantanganIds = pasien.Pantangan.map(p => p.makananId);
+    // Gabungkan pantangan umum dan pengecualian spesifik dari dietisien
+    const pantanganIds = new Set([
+      ...pasien.Pantangan.map((p) => p.makananId),
+      ...pasien.PengecualianMakanan.map((p) => p.makananId),
+    ]);
 
     const menus = await this.prisma.menu.findMany({
       include: {
@@ -88,7 +99,7 @@ export class PesananService {
           where: {
             jenis: Jenis.Lauk,
             idMakanan: {
-              notIn: pantanganIds
+              notIn: Array.from(pantanganIds), // Gunakan daftar gabungan
             },
           },
           select: {
@@ -106,11 +117,13 @@ export class PesananService {
       },
     });
 
-    return menus.map(menu => {
-      const transformedMakanan = menu.Makanan?.map(m => {
-        const utamaDariWithUrl = m.utamaDari?.map(utama => ({
+    return menus.map((menu) => {
+      const transformedMakanan = menu.Makanan?.map((m) => {
+        const utamaDariWithUrl = m.utamaDari?.map((utama) => ({
           ...utama,
-          gambar: utama.gambar ? `${process.env.APP_URL}${utama.gambar}` : utama.gambar,
+          gambar: utama.gambar
+            ? `${process.env.APP_URL}${utama.gambar}`
+            : utama.gambar,
         }));
         return {
           ...m,
@@ -128,22 +141,26 @@ export class PesananService {
   async findMakanan(uuid: string) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { uuid },
-      include: { Pantangan: true },
+      include: { Pantangan: true, PengecualianMakanan: true },
     });
 
-    if (!pasien) throw new NotFoundException("Pasien tidak ditemukan");
+    if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
-    const pantanganIds = pasien.Pantangan.map(p => p.makananId);
+    // Gabungkan pantangan umum dan pengecualian spesifik dari dietisien
+    const pantanganIds = new Set([
+      ...pasien.Pantangan.map((p) => p.makananId),
+      ...pasien.PengecualianMakanan.map((p) => p.makananId),
+    ]);
 
     const makanan = await this.prisma.makanan.findMany({
       where: {
         idMakanan: {
-          notIn: pantanganIds
+          notIn: Array.from(pantanganIds), // Gunakan daftar gabungan
         },
       },
     });
 
-    return makanan.map(m => ({
+    return makanan.map((m) => ({
       ...m,
       gambar: m.gambar ? `${process.env.APP_URL}${m.gambar}` : m.gambar,
     }));
@@ -187,4 +204,3 @@ export class PesananService {
   //   return `This action removes a #${id} pesanan`;
   // }
 }
-

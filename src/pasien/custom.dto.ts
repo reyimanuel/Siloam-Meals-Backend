@@ -1,3 +1,5 @@
+import { IsArray, IsNumber } from 'class-validator';
+
 export class CustomPasienDto {
   namaPasien: string;
   mr: string;
@@ -9,4 +11,11 @@ export class CustomPasienDto {
     namaPantangan: string;
     makananId: number;
   }[];
+}
+
+// DTO Baru untuk menerima daftar ID makanan yang dikecualikan
+export class UpdatePengecualianDto {
+  @IsArray()
+  @IsNumber({}, { each: true })
+  makananIds: number[];
 }

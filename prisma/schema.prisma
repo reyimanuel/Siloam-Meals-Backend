@@ -52,8 +52,19 @@ model Pasien {
   Pantangan     Pantangan[]
   Pesanan       Pesanan[]
   Feedback        Feedback[]
+  PengecualianMakanan PengecualianMakanan[] // Relasi baru ke Pengecualian
 }
 
+// Model BARU untuk menyimpan makanan yang dikecualikan oleh dietisien
+model PengecualianMakanan {
+  id          Int    @id @default(autoincrement())
+  pasienId    Int
+  makananId   Int
+  pasien      Pasien @relation(fields: [pasienId], references: [idPasien])
+  makanan     Makanan @relation(fields: [makananId], references: [idMakanan])
+
+  @@unique([pasienId, makananId]) // Pastikan kombinasi pasien & makanan unik
+}
 model Makanan {
   idMakanan   Int         @id @default(autoincrement())
   namaMakanan String
@@ -72,6 +83,7 @@ model Makanan {
   utamaDari       Makanan[]         @relation("UtamaRelasi")
   punyaUtama      Makanan[]         @relation("UtamaRelasi")
   tanggalTersedia TanggalTersedia[]
+  PengecualianMakanan   PengecualianMakanan[] // Relasi baru ke Pengecualian
 }
 
 model TanggalTersedia {

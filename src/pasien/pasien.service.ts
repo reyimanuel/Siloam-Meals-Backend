@@ -11,6 +11,8 @@ import * as QRCode from 'qrcode';
 import { CustomPasienDto } from './custom.dto';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
+import { Role } from '@prisma/client';
+
 
 @Injectable()
 export class PasienService {
@@ -126,6 +128,7 @@ export class PasienService {
       include: {
         user: { select: { namaUser: true } },
         Pantangan: { include: { makanan: true } },
+        PengecualianMakanan: { include: { makanan: true } }, // Sertakan data pengecualian
       },
     });
   }
@@ -136,6 +139,7 @@ export class PasienService {
       include: {
         user: { select: { namaUser: true } },
         Pantangan: true,
+        PengecualianMakanan: { include: { makanan: true } }, // Sertakan data pengecualian
       },
     });
     if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
@@ -187,6 +191,41 @@ export class PasienService {
         Pantangan: { include: { makanan: true } },
       },
     });
+  }
+
+  // Fungsi baru untuk dietisien memfilter makanan
+  async updatePengecualian(
+    pasienId: number,
+    makananIds: number[],
+    userRole: string,
+  ) {
+    if (userRole !== Role.DIETISIEN) {
+      throw new ForbiddenException(
+        'Hanya Dietisien yang dapat mengatur pengecualian makanan.',
+      );
+    }
+
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { idPasien: pasienId },
+    });
+    if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
+
+    // Transaksi untuk menghapus pengecualian lama dan membuat yang baru
+    await this.prisma.$transaction([
+      // 1. Hapus semua pengecualian yang ada untuk pasien ini
+      this.prisma.pengecualianMakanan.deleteMany({
+        where: { pasienId: pasienId },
+      }),
+      // 2. Buat pengecualian baru berdasarkan daftar ID yang diberikan
+      this.prisma.pengecualianMakanan.createMany({
+        data: makananIds.map((makananId) => ({
+          pasienId: pasienId,
+          makananId: makananId,
+        })),
+      }),
+    ]);
+
+    return { message: 'Daftar pengecualian makanan berhasil diperbarui.' };
   }
 
   async validatePasien(id: number, userId: number) {
