@@ -16,7 +16,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { MakananDto, CreateSimpleMakananDto } from './custom.dto';
+import { MakananDto } from './custom.dto';
 
 // @UseGuards(JwtGuard) sudah dihapus karena tidak diperlukan (menggunakan global guard)
 @Controller('makanan')
@@ -46,15 +46,6 @@ export class MakananController {
   ) {
     const userId = req.user.id;
     return this.makananService.create(dto, file, userId);
-  }
-
-  // Endpoint sederhana untuk Perawat
-  @Roles(Role.ADMIN, Role.NURSE, Role.KITCHEN)
-  @Post('simple')
-  createSimple(@Body() dto: CreateSimpleMakananDto, @Req() req) {
-    // Perbaiki tipe DTO di sini
-    const userId = req.user.id;
-    return this.makananService.createSimple(dto, userId);
   }
 
   @Get()

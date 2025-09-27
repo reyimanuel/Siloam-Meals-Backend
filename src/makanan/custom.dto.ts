@@ -38,13 +38,3 @@ export class MakananDto {
   @IsNumber({}, { each: true })
   utamaDariIds?: number[];
 }
-
-// Nama kelas diubah dari SimpleMakananDto menjadi CreateSimpleMakananDto
-export class CreateSimpleMakananDto {
-  @IsString()
-  @IsNotEmpty()
-  namaMakanan: string;
-
-  @IsEnum(Jenis)
-  jenis: Jenis;
-}

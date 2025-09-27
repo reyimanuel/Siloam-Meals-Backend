@@ -6,27 +6,13 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
-import { MakananDto, CreateSimpleMakananDto } from './custom.dto'; // Import DTO baru
+import { MakananDto } from './custom.dto'; // Import DTO baru
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 
 @Injectable()
 export class MakananService {
   constructor(private prisma: PrismaService) {}
-
-  // Fungsi baru untuk menangani pembuatan makanan sederhana oleh perawat
-  async createSimple(dto: CreateSimpleMakananDto, userId: number) {
-    return this.prisma.makanan.create({
-      data: {
-        namaMakanan: dto.namaMakanan,
-        jenis: dto.jenis,
-        createdBy: userId,
-      },
-      include: {
-        user: { select: { namaUser: true } },
-      },
-    });
-  }
 
   async create(
     dto: MakananDto & { utamaDariIds?: number[] },
@@ -115,9 +101,9 @@ export class MakananService {
     });
     if (!makanan) throw new NotFoundException('Makanan Tidak Ditemukan');
 
-    if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
+    if (role !== 'ADMIN' && role !== 'KITCHEN') {
       throw new ForbiddenException(
-        'Hanya Admin atau pembuat data yang dapat memperbarui',
+        'Hanya Admin atau Staf Dapur yang dapat memperbarui data ini',
       );
     }
 
@@ -172,9 +158,10 @@ export class MakananService {
       throw new NotFoundException('Makanan Tidak Ditemukan');
     }
 
-    if (!(role === 'ADMIN' || userId === makanan.createdBy)) {
+    // PERBAIKAN: Hanya Admin atau Kitchen yang bisa menghapus, terlepas dari siapa pembuatnya.
+    if (role !== 'ADMIN' && role !== 'KITCHEN') {
       throw new ForbiddenException(
-        'Hanya Admin atau pembuat data yang dapat menghapus',
+        'Hanya Admin atau Staf Dapur yang dapat menghapus data ini',
       );
     }
 
