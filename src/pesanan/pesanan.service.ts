@@ -139,6 +139,7 @@ export class PesananService {
             idMakanan: true,
             namaMakanan: true,
             jenis: true,
+            isPaket: true,
             gambar: true,
             created_at: true,
             updated_at: true,

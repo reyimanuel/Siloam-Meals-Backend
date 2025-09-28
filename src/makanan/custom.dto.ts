@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsBoolean,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { Jenis } from '@prisma/client';
@@ -17,6 +18,10 @@ export class MakananDto {
 
   @IsEnum(Jenis)
   jenis: Jenis;
+
+  @IsBoolean()
+  @IsOptional()
+  isPaket?: boolean;
 
   @IsArray()
   @IsDateString({}, { each: true })

@@ -125,6 +125,7 @@ export class MakananService {
       data: {
         ...(dto.namaMakanan && { namaMakanan: dto.namaMakanan }),
         ...(dto.jenis && { jenis: dto.jenis }),
+        ...(dto.isPaket !== undefined && { isPaket: dto.isPaket }),
         ...(dto.menuId && { menuId: Number(dto.menuId) }),
         ...(dto.utamaDariIds?.length && {
           utamaDari: {
