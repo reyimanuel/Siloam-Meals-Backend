@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Jenis } from '@prisma/client';
+import { Jenis, StatusPesanan } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
@@ -101,11 +101,20 @@ export class PesananService {
 
     if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
-    // Gabungkan pantangan umum dan pengecualian spesifik dari dietisien
-    const pantanganIds = new Set([
-      ...pasien.Pantangan.map((p) => p.makananId),
-      ...pasien.PengecualianMakanan.map((p) => p.makananId),
-    ]);
+    // Gabungkan semua ID makanan yang tidak boleh dimakan oleh pasien
+    const pantanganUmumIds = pasien.Pantangan.map((p) => p.makananId);
+    const pengecualianSpesifikIds = pasien.PengecualianMakanan.map(
+      (p) => p.makananId,
+    );
+    const forbiddenFoodIds = [
+      ...new Set([...pantanganUmumIds, ...pengecualianSpesifikIds]),
+    ];
+
+    // **LOGIKA BARU: Tentukan tanggal untuk pemesanan (besok)**
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0));
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999));
 
     const menus = await this.prisma.menu.findMany({
       include: {
@@ -114,7 +123,16 @@ export class PesananService {
           where: {
             jenis: Jenis.Lauk,
             idMakanan: {
-              notIn: Array.from(pantanganIds), // Gunakan daftar gabungan
+              notIn: forbiddenFoodIds,
+            },
+            // **FILTER BARU: Hanya tampilkan makanan yang tersedia besok**
+            tanggalTersedia: {
+              some: {
+                tanggal: {
+                  gte: startOfTomorrow,
+                  lt: endOfTomorrow,
+                },
+              },
             },
           },
           select: {
@@ -162,15 +180,33 @@ export class PesananService {
     if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
     // Gabungkan pantangan umum dan pengecualian spesifik dari dietisien
-    const pantanganIds = new Set([
-      ...pasien.Pantangan.map((p) => p.makananId),
-      ...pasien.PengecualianMakanan.map((p) => p.makananId),
-    ]);
+    const pantanganIds = pasien.Pantangan.map((p) => p.makananId);
+    const pengecualianSpesifikIds = pasien.PengecualianMakanan.map(
+      (p) => p.makananId,
+    );
+    const forbiddenFoodIds = [
+      ...new Set([...pantanganIds, ...pengecualianSpesifikIds]),
+    ];
+
+    // **LOGIKA BARU: Tentukan tanggal untuk pemesanan (besok)**
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0));
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999));
 
     const makanan = await this.prisma.makanan.findMany({
       where: {
         idMakanan: {
-          notIn: Array.from(pantanganIds), // Gunakan daftar gabungan
+          notIn: forbiddenFoodIds,
+        },
+        // **FILTER BARU: Hanya tampilkan makanan pendamping yang tersedia besok**
+        tanggalTersedia: {
+          some: {
+            tanggal: {
+              gte: startOfTomorrow,
+              lt: endOfTomorrow,
+            },
+          },
         },
       },
     });
