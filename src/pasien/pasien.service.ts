@@ -13,7 +13,6 @@ import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 
-
 @Injectable()
 export class PasienService {
   constructor(
@@ -247,6 +246,7 @@ export class PasienService {
   async remove(id: number, role: string, userId: number) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { idPasien: id },
+      include: { Pesanan: true }, // Sertakan pesanan untuk mendapatkan ID-nya
     });
     if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
@@ -256,20 +256,24 @@ export class PasienService {
       );
     }
 
-    if (pasien.status === 'PENDING' || pasien.status === 'ACTIVE') {
-      if (!['ADMIN', 'NURSE'].includes(role)) {
-        throw new ForbiddenException(
-          'Hanya Admin atau Nurse yang dapat menghapus data ini',
-        );
-      }
-    }
+    const pesananIds = pasien.Pesanan.map((p) => p.idPesanan);
 
-    // Menghapus data pasien
+    // Menghapus data pasien dalam satu transaksi
     await this.prisma.$transaction([
+      // 1. Hapus "cucu" terlebih dahulu (PesananDetail)
+      this.prisma.pesananDetail.deleteMany({
+        where: { pesananId: { in: pesananIds } },
+      }),
+      // 2. Baru hapus "anak" (Pesanan, Pantangan, dll)
+      this.prisma.pesanan.deleteMany({ where: { pasienId: id } }),
       this.prisma.pantangan.deleteMany({ where: { pasienId: id } }),
-      this.prisma.pesanan.deleteMany({ where: { pasienId: id } }), // Hapus pesanan terkait
+      this.prisma.pengecualianMakanan.deleteMany({ where: { pasienId: id } }),
+      this.prisma.feedback.deleteMany({ where: { pasienId: id } }),
+      // 3. Terakhir, hapus "induk" (Pasien)
       this.prisma.pasien.delete({ where: { idPasien: id } }),
     ]);
+
+    return { message: `Pasien dengan ID ${id} berhasil dihapus.` };
   }
 
   async activatePendingPasien() {
