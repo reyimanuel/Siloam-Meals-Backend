@@ -120,12 +120,15 @@ export class MakananService {
       gambarUrl = `/public/${file.filename}`;
     }
 
+    // PERBAIKAN DI SINI: Konversi string dari FormData menjadi boolean
+    const isPaketBoolean = String(dto.isPaket) === 'true';
+
     return this.prisma.makanan.update({
       where: { idMakanan: id },
       data: {
         ...(dto.namaMakanan && { namaMakanan: dto.namaMakanan }),
         ...(dto.jenis && { jenis: dto.jenis }),
-        ...(dto.isPaket !== undefined && { isPaket: dto.isPaket }),
+        ...(dto.isPaket && { isPaket: isPaketBoolean }),
         ...(dto.menuId && { menuId: Number(dto.menuId) }),
         ...(dto.utamaDariIds?.length && {
           utamaDari: {
@@ -174,6 +177,14 @@ export class MakananService {
         console.warn('Gagal hapus gambar fisik:', err.message);
       }
     }
+
+    // PERBAIKAN DI SINI: Hapus semua data terkait sebelum menghapus makanan utama
+    await this.prisma.$transaction([
+      // 1. Hapus semua relasi di tabel lain
+      this.prisma.pantangan.deleteMany({ where: { makananId: id } }),
+      this.prisma.pengecualianMakanan.deleteMany({ where: { makananId: id } }),
+      this.prisma.pesananDetail.deleteMany({ where: { makananId: id } }),
+    ]);
 
     return this.prisma.makanan.delete({
       where: { idMakanan: id },
