@@ -118,13 +118,15 @@ model Pantangan {
 
 model Pesanan {
   idPesanan  Int      @id @default(autoincrement())
-  pasienId   Int
+  pasienId   Int?
   sesi       String
+  namaPasienHistory String? // Menyimpan nama pasien untuk histori
+  status            StatusPesanan   @default(PENDING) // Tambahkan status pesanan
   tanggal    DateTime
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  pasien        Pasien          @relation(fields: [pasienId], references: [idPasien])
+  pasien        Pasien?          @relation(fields: [pasienId], references: [idPasien], onDelete: SetNull)
   PesananDetail PesananDetail[]
 }
 
@@ -172,4 +174,11 @@ enum Status {
   ACTIVE
   INACTIVE
   PENDING
+}
+
+enum StatusPesanan {
+  PENDING
+  SELESAI
+  DITERIMA
+  BATAL
 }

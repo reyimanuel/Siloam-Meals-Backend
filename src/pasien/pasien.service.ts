@@ -6,12 +6,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
-import { Status } from '@prisma/client';
+import { Role, Status, StatusPesanan } from '@prisma/client';
 import * as QRCode from 'qrcode';
-import { CustomPasienDto } from './custom.dto';
+import { CustomPasienDto, UpdatePengecualianDto } from './custom.dto';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
-import { Role } from '@prisma/client';
 
 @Injectable()
 export class PasienService {
@@ -246,7 +245,7 @@ export class PasienService {
   async remove(id: number, role: string, userId: number) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { idPasien: id },
-      include: { Pesanan: true }, // Sertakan pesanan untuk mendapatkan ID-nya
+      include: { Pesanan: true },
     });
     if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
@@ -258,22 +257,35 @@ export class PasienService {
 
     const pesananIds = pasien.Pesanan.map((p) => p.idPesanan);
 
-    // Menghapus data pasien dalam satu transaksi
-    await this.prisma.$transaction([
-      // 1. Hapus "cucu" terlebih dahulu (PesananDetail)
-      this.prisma.pesananDetail.deleteMany({
-        where: { pesananId: { in: pesananIds } },
-      }),
-      // 2. Baru hapus "anak" (Pesanan, Pantangan, dll)
-      this.prisma.pesanan.deleteMany({ where: { pasienId: id } }),
-      this.prisma.pantangan.deleteMany({ where: { pasienId: id } }),
-      this.prisma.pengecualianMakanan.deleteMany({ where: { pasienId: id } }),
-      this.prisma.feedback.deleteMany({ where: { pasienId: id } }),
-      // 3. Terakhir, hapus "induk" (Pasien)
-      this.prisma.pasien.delete({ where: { idPasien: id } }),
-    ]);
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Simpan nama pasien ke histori dan ubah status pesanan PENDING menjadi BATAL
+      await tx.pesanan.updateMany({
+        where: { pasienId: id },
+        data: {
+          namaPasienHistory: pasien.namaPasien,
+          status: {
+            // Hanya ubah status jika saat ini PENDING
+            // Ini mencegah pesanan yang sudah SELESAI menjadi BATAL
+            ...(pasien.Pesanan.some((p) => p.status === 'PENDING')
+              ? { set: StatusPesanan.BATAL }
+              : {}),
+          },
+        },
+      });
 
-    return { message: `Pasien dengan ID ${id} berhasil dihapus.` };
+      // 2. Hapus semua data anak yang harus hilang bersama pasien
+      await tx.pantangan.deleteMany({ where: { pasienId: id } });
+      await tx.pengecualianMakanan.deleteMany({ where: { pasienId: id } });
+      await tx.feedback.deleteMany({ where: { pasienId: id } });
+
+      // 3. Terakhir, hapus data pasien.
+      // onDelete: SetNull pada skema akan otomatis mengubah pasienId di Pesanan menjadi null.
+      await tx.pasien.delete({ where: { idPasien: id } });
+    });
+
+    return {
+      message: `Pasien dengan ID ${id} berhasil dihapus. Pesanan yang tertunda telah dibatalkan.`,
+    };
   }
 
   async activatePendingPasien() {

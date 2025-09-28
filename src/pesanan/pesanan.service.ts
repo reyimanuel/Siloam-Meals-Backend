@@ -78,6 +78,21 @@ export class PesananService {
     });
   }
 
+  async getPesananDapur() {
+    const pesanan = await this.prisma.pesanan.findMany({
+      include: { pasien: true }, // pasien bisa null setelah dihapus
+      orderBy: { created_at: 'desc' },
+    });
+
+    return pesanan.map((p) => ({
+      idPesanan: p.idPesanan,
+      namaPasien:
+        p.pasien?.namaPasien ?? p.namaPasienHistory ?? 'Pasien tidak diketahui',
+      status: p.status,
+      tanggal: p.tanggal,
+    }));
+  }
+
   async findMenu(uuid: string) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { uuid },
@@ -179,17 +194,29 @@ export class PesananService {
     });
   }
 
-  findAll() {
-    return this.prisma.pesanan.findMany({
+  async findAll() {
+    const pesanan = await this.prisma.pesanan.findMany({
       include: {
-        pasien: { select: { namaPasien: true } },
+        pasien: { select: { namaPasien: true, ruanganInap: true } }, // pasien bisa null
         PesananDetail: {
           include: {
             makanan: true,
           },
         },
       },
+      orderBy: {
+        created_at: 'desc',
+      },
     });
+
+    // PERBAIKAN: Gunakan pemetaan untuk memastikan nama pasien selalu ada
+    return pesanan.map((p) => ({
+      ...p,
+      // Logika fallback ini akan digunakan oleh semua peran (Admin & Kitchen)
+      namaPasien:
+        p.pasien?.namaPasien ?? p.namaPasienHistory ?? 'Pasien Dihapus',
+      ruanganInap: p.pasien?.ruanganInap ?? 'N/A',
+    }));
   }
 
   // findOne(id: number) {
