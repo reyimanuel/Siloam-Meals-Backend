@@ -11,7 +11,7 @@ async function bootstrap() {
   const reflector = app.get(Reflector);
   app.useGlobalGuards(new RolesGuard(reflector));
 
-  app.useStaticAssets(join(__dirname, '..','..', 'public'), {
+  app.useStaticAssets(join(__dirname, '..', '..', 'public'), {
     prefix: '/public/', // akses via http://localhost:3000/public/namafile.jpg
   });
 
@@ -21,4 +21,3 @@ async function bootstrap() {
   console.log(`🚀 App running on http://localhost:${port}`);
 }
 bootstrap();
-

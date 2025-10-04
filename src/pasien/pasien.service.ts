@@ -245,7 +245,6 @@ export class PasienService {
   async remove(id: number, role: string, userId: number) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { idPasien: id },
-      include: { Pesanan: true },
     });
     if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
 
@@ -255,36 +254,32 @@ export class PasienService {
       );
     }
 
-    const pesananIds = pasien.Pesanan.map((p) => p.idPesanan);
-
     await this.prisma.$transaction(async (tx) => {
-      // 1. Simpan nama pasien ke histori dan ubah status pesanan PENDING menjadi BATAL
+      // 1. Update semua pesanan yang tertunda (jika ada) menjadi BATAL.
+      // Logika ini sekarang aman meskipun pasien belum pernah memesan.
       await tx.pesanan.updateMany({
-        where: { pasienId: id },
+        where: {
+          pasienId: id,
+          status: StatusPesanan.PENDING,
+        },
         data: {
           namaPasienHistory: pasien.namaPasien,
-          status: {
-            // Hanya ubah status jika saat ini PENDING
-            // Ini mencegah pesanan yang sudah SELESAI menjadi BATAL
-            ...(pasien.Pesanan.some((p) => p.status === 'PENDING')
-              ? { set: StatusPesanan.BATAL }
-              : {}),
-          },
+          status: StatusPesanan.BATAL,
         },
       });
 
-      // 2. Hapus semua data anak yang harus hilang bersama pasien
+      // 2. Hapus semua data anak yang harus hilang bersama pasien.
       await tx.pantangan.deleteMany({ where: { pasienId: id } });
       await tx.pengecualianMakanan.deleteMany({ where: { pasienId: id } });
       await tx.feedback.deleteMany({ where: { pasienId: id } });
 
       // 3. Terakhir, hapus data pasien.
-      // onDelete: SetNull pada skema akan otomatis mengubah pasienId di Pesanan menjadi null.
+      // onDelete: SetNull pada skema akan otomatis mengubah pasienId di Pesanan yang tidak PENDING menjadi null.
       await tx.pasien.delete({ where: { idPasien: id } });
     });
 
     return {
-      message: `Pasien dengan ID ${id} berhasil dihapus. Pesanan yang tertunda telah dibatalkan.`,
+      message: `Pasien dengan ID ${id} berhasil dihapus. Pesanan yang tertunda (jika ada) telah dibatalkan.`,
     };
   }
 

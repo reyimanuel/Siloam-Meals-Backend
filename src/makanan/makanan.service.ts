@@ -21,10 +21,14 @@ export class MakananService {
   ) {
     const gambarUrl = file ? `/public/${file.filename}` : null;
 
+    // SOLUSI: Tambahkan konversi boolean ini, sama seperti di fungsi update
+    const isPaketBoolean = String(dto.isPaket) === 'true';
+
     return this.prisma.makanan.create({
       data: {
         namaMakanan: dto.namaMakanan,
         jenis: dto.jenis,
+        isPaket: isPaketBoolean, // SOLUSI: Gunakan nilai boolean di sini
         gambar: gambarUrl,
         createdBy: userId,
         menuId: dto.menuId ? Number(dto.menuId) : null,
