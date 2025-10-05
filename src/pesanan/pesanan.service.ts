@@ -78,6 +78,41 @@ export class PesananService {
     });
   }
 
+  async findForKitchen() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0));
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999));
+
+    const pesanan = await this.prisma.pesanan.findMany({
+      where: {
+        status: StatusPesanan.PENDING,
+        tanggal: {
+          gte: startOfTomorrow,
+          lt: endOfTomorrow,
+        },
+      },
+      include: {
+        pasien: { select: { namaPasien: true, ruanganInap: true } },
+        PesananDetail: {
+          include: {
+            makanan: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    return pesanan.map((p) => ({
+      ...p,
+      namaPasien:
+        p.pasien?.namaPasien ?? p.namaPasienHistory ?? 'Pasien Dihapus',
+      ruanganInap: p.pasien?.ruanganInap ?? 'N/A',
+    }));
+  }
+
   async getPesananDapur() {
     const pesanan = await this.prisma.pesanan.findMany({
       include: { pasien: true }, // pasien bisa null setelah dihapus
@@ -91,6 +126,43 @@ export class PesananService {
       status: p.status,
       tanggal: p.tanggal,
     }));
+  }
+
+  // FUNGSI BARU: Logika untuk menghitung pesanan pending per sesi
+  async getCountBySesi() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0));
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999));
+
+    const counts = await this.prisma.pesanan.groupBy({
+      by: ['sesi'],
+      where: {
+        status: StatusPesanan.PENDING,
+        tanggal: {
+          gte: startOfTomorrow,
+          lt: endOfTomorrow,
+        },
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    // Mengubah format data agar lebih mudah digunakan di frontend
+    const result = {
+      'Menu Pagi': 0,
+      'Menu Siang': 0,
+      'Menu Malam': 0,
+    };
+
+    counts.forEach((item) => {
+      if (result.hasOwnProperty(item.sesi)) {
+        result[item.sesi] = item._count._all;
+      }
+    });
+
+    return result;
   }
 
   async findMenu(uuid: string) {

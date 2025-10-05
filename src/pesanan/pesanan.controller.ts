@@ -1,15 +1,40 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { PesananService } from './pesanan.service';
-import { Public } from 'src/auth/roles.decorator'
-
+import { Public } from 'src/auth/roles.decorator';
 
 @Controller('pesanan')
 export class PesananController {
   constructor(private readonly pesananService: PesananService) {}
 
+  // ENDPOINT BARU: Khusus untuk mengambil data pesanan dapur
+  @Get('dapur')
+  // @Roles('KITCHEN', 'ADMIN') // Sebaiknya endpoint ini dilindungi
+  async findForKitchen() {
+    return this.pesananService.findForKitchen();
+  }
+
+  // FUNGSI BARU: Endpoint untuk mendapatkan jumlah pesanan per sesi
+  @Get('count-by-sesi')
+  // @Roles('KITCHEN', 'ADMIN') // Anda bisa menambahkan otorisasi jika perlu
+  async getCountBySesi() {
+    return this.pesananService.getCountBySesi();
+  }
+
   @Post(':uuid')
   @Public()
-  async create(@Param('uuid') uuid: string, @Body('sesi') sesi: string, @Body('details') details: any[],) {
+  async create(
+    @Param('uuid') uuid: string,
+    @Body('sesi') sesi: string,
+    @Body('details') details: any[],
+  ) {
     return this.pesananService.create(uuid, sesi, details);
   }
 
