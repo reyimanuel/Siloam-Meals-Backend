@@ -24,6 +24,12 @@ export class PasienController {
     return this.pasienService.create(data, req.user.id);
   }
 
+  @Get('count')
+  @Roles('ADMIN')
+  async getCount() {
+    return this.pasienService.count();
+  }
+
   @Get('qr/:uuid')
   @Roles('ADMIN', 'NURSE')
   async generateQr(@Param('uuid') uuid: string) {

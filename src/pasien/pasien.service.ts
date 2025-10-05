@@ -91,6 +91,11 @@ export class PasienService {
     }
   }
 
+  async count() {
+    const count = await this.prisma.pasien.count();
+    return { count };
+  }
+
   async getPasienByLink(uuid: string) {
     try {
       const pasien = await this.prisma.pasien.findUnique({
@@ -255,36 +260,42 @@ export class PasienService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // 1. Update semua pesanan yang tertunda (jika ada) menjadi BATAL.
-      // Logika ini sekarang aman meskipun pasien belum pernah memesan.
+      // 1. Update semua pesanan terkait untuk menyimpan data history
+      await tx.pesanan.updateMany({
+        where: {
+          pasienId: id,
+        },
+        data: {
+          namaPasienHistory: pasien.namaPasien,
+          ruanganInapHistory: pasien.ruanganInap,
+          mrHistory: pasien.mr,
+          diagnosaHistory: pasien.diagnosa,
+        },
+      });
+
+      // 2. Ubah status pesanan PENDING menjadi BATAL
       await tx.pesanan.updateMany({
         where: {
           pasienId: id,
           status: StatusPesanan.PENDING,
         },
         data: {
-          // --- PERUBAHAN: Menyimpan snapshot data pasien sebelum dihapus ---
-          namaPasienHistory: pasien.namaPasien,
-          ruanganInapHistory: pasien.ruanganInap,
-          mrHistory: pasien.mr,
-          diagnosaHistory: pasien.diagnosa,
-          // ----------------------------------------------------------------
           status: StatusPesanan.BATAL,
         },
       });
 
-      // 2. Hapus semua data anak yang harus hilang bersama pasien.
+      // 3. Hapus data anak yang harus hilang bersama pasien.
       await tx.pantangan.deleteMany({ where: { pasienId: id } });
       await tx.pengecualianMakanan.deleteMany({ where: { pasienId: id } });
       await tx.feedback.deleteMany({ where: { pasienId: id } });
 
-      // 3. Terakhir, hapus data pasien.
-      // onDelete: SetNull pada skema akan otomatis mengubah pasienId di Pesanan yang tidak PENDING menjadi null.
+      // 4. Terakhir, hapus data pasien.
+      // onDelete: SetNull pada skema akan otomatis mengubah pasienId di Pesanan menjadi null.
       await tx.pasien.delete({ where: { idPasien: id } });
     });
 
     return {
-      message: `Pasien dengan ID ${id} berhasil dihapus. Pesanan yang tertunda (jika ada) telah dibatalkan.`,
+      message: `Pasien dengan ID ${id} berhasil dihapus. Riwayat pesanan telah diarsipkan.`,
     };
   }
 
