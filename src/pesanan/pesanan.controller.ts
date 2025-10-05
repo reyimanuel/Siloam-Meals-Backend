@@ -57,6 +57,12 @@ export class PesananController {
     return this.pesananService.findMenu(uuid);
   }
 
+  @Delete(':id')
+  @Roles('ADMIN')
+  remove(@Param('id') id: string) {
+    return this.pesananService.remove(+id);
+  }
+
   @Get('makanan/:uuid')
   @Public()
   async findMakanan(@Param('uuid') uuid: string) {

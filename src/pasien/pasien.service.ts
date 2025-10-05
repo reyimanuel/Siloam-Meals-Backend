@@ -263,7 +263,12 @@ export class PasienService {
           status: StatusPesanan.PENDING,
         },
         data: {
+          // --- PERUBAHAN: Menyimpan snapshot data pasien sebelum dihapus ---
           namaPasienHistory: pasien.namaPasien,
+          ruanganInapHistory: pasien.ruanganInap,
+          mrHistory: pasien.mr,
+          diagnosaHistory: pasien.diagnosa,
+          // ----------------------------------------------------------------
           status: StatusPesanan.BATAL,
         },
       });

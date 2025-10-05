@@ -10,7 +10,7 @@ import { PrismaService } from 'nestjs-prisma';
 export class PesananService {
   constructor(private prisma: PrismaService) {}
 
-  async create(uuid: string, sesi: string, details: any[]) {
+  async create(uuid: string, sesi: string, details: { makananId: number }[]) {
     const pasien = await this.prisma.pasien.findUnique({
       where: { uuid },
       include: { Pantangan: true, PengecualianMakanan: true },
@@ -45,13 +45,29 @@ export class PesananService {
       ...pasien.PengecualianMakanan.map((p) => p.makananId),
     ]);
 
+    // --- PERUBAHAN: Fetch detail makanan untuk disimpan sebagai history ---
+    const makananDetails = await this.prisma.makanan.findMany({
+      where: {
+        idMakanan: {
+          in: details.map((d) => d.makananId),
+        },
+      },
+    });
+
+    if (makananDetails.length !== details.length) {
+      throw new BadRequestException('Satu atau lebih makanan tidak valid.');
+    }
+    // ------------------------------------------------------------------
+
     // Cek apakah ada makanan yang dipesan masuk dalam pantangan
-    const forbidden = details.filter((d) => pantanganIds.has(d.makananId));
+    const forbidden = makananDetails.filter((d) =>
+      pantanganIds.has(d.idMakanan),
+    );
 
     if (forbidden.length > 0) {
       throw new BadRequestException(
-        `Pesanan tidak valid. Pasien memiliki pantangan terhadap makanan dengan ID: ${forbidden
-          .map((f) => f.makananId)
+        `Pesanan tidak valid. Pasien memiliki pantangan terhadap makanan: ${forbidden
+          .map((f) => f.namaMakanan)
           .join(', ')}`,
       );
     }
@@ -61,9 +77,18 @@ export class PesananService {
         pasienId: pasien.idPasien,
         tanggal: tomorrow,
         sesi: sesi,
+        // --- PERUBAHAN: Simpan snapshot data pasien saat pesanan dibuat ---
+        namaPasienHistory: pasien.namaPasien,
+        ruanganInapHistory: pasien.ruanganInap,
+        mrHistory: pasien.mr,
+        diagnosaHistory: pasien.diagnosa,
+        // -------------------------------------------------------------
         PesananDetail: {
-          create: details.map((d) => ({
-            makananId: d.makananId, // hanya makananId
+          // --- PERUBAHAN: Simpan snapshot data makanan saat pesanan dibuat ---
+          create: makananDetails.map((m) => ({
+            makananId: m.idMakanan,
+            namaMakananHistory: m.namaMakanan,
+            jenisHistory: m.jenis,
           })),
         },
       },
@@ -109,7 +134,7 @@ export class PesananService {
       ...p,
       namaPasien:
         p.pasien?.namaPasien ?? p.namaPasienHistory ?? 'Pasien Dihapus',
-      ruanganInap: p.pasien?.ruanganInap ?? 'N/A',
+      ruanganInap: p.pasien?.ruanganInap ?? p.ruanganInapHistory ?? 'N/A',
     }));
   }
 
@@ -333,19 +358,22 @@ export class PesananService {
       ...p,
       namaPasien:
         p.pasien?.namaPasien ?? p.namaPasienHistory ?? 'Pasien Dihapus',
-      ruanganInap: p.pasien?.ruanganInap ?? 'N/A',
+      ruanganInap: p.pasien?.ruanganInap ?? p.ruanganInapHistory ?? 'N/A',
     }));
   }
 
-  // findOne(id: number) {
-  //   return `This action returns a #${id} pesanan`;
-  // }
+  async remove(id: number) {
+    const pesanan = await this.prisma.pesanan.findUnique({
+      where: { idPesanan: id },
+    });
 
-  // update(id: number, updatePesanandata: UpdatePesanandata) {
-  //   return `This action updates a #${id} pesanan`;
-  // }
+    if (!pesanan) {
+      throw new NotFoundException('Riwayat pesanan tidak ditemukan.');
+    }
 
-  // remove(id: number) {
-  //   return `This action removes a #${id} pesanan`;
-  // }
+    // Dengan onDelete: Cascade pada PesananDetail, detail akan terhapus otomatis.
+    return this.prisma.pesanan.delete({
+      where: { idPesanan: id },
+    });
+  }
 }

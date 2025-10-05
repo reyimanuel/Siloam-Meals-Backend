@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
   ForbiddenException,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
@@ -62,36 +63,41 @@ export class MakananService {
     // Mengelompokkan makanan berdasarkan tanggal dan sesi
     const schedule = {};
 
-    scheduledFoods.forEach(food => {
-      food.tanggalTersedia.forEach(tgl => {
+    scheduledFoods.forEach((food) => {
+      food.tanggalTersedia.forEach((tgl) => {
         const dateString = tgl.tanggal.toISOString().split('T')[0]; // Format YYYY-MM-DD
-        
+
         if (!schedule[dateString]) {
-          schedule[dateString] = { Pagi: [], Siang: [], Malam: [], Lainnya: [] };
+          schedule[dateString] = {
+            Pagi: [],
+            Siang: [],
+            Malam: [],
+            Lainnya: [],
+          };
         }
 
         const foodData = {
-            id: food.idMakanan,
-            nama: food.namaMakanan,
-            jenis: food.jenis
+          id: food.idMakanan,
+          nama: food.namaMakanan,
+          jenis: food.jenis,
         };
-        
+
         // *** PERBAIKAN LOGIKA UTAMA DI SINI ***
         if (food.jenis === 'Lauk') {
-            // Jika Lauk, kelompokkan berdasarkan menu spesifik
-            let sesiKey: keyof DailySchedule = 'Lainnya';
-            const namaMenu = food.menu?.namaMenu;
+          // Jika Lauk, kelompokkan berdasarkan menu spesifik
+          let sesiKey: keyof DailySchedule = 'Lainnya';
+          const namaMenu = food.menu?.namaMenu;
 
-            if (namaMenu === 'Menu Pagi') sesiKey = 'Pagi';
-            else if (namaMenu === 'Menu Siang') sesiKey = 'Siang';
-            else if (namaMenu === 'Menu Malam') sesiKey = 'Malam';
-            
-            schedule[dateString][sesiKey].push(foodData);
+          if (namaMenu === 'Menu Pagi') sesiKey = 'Pagi';
+          else if (namaMenu === 'Menu Siang') sesiKey = 'Siang';
+          else if (namaMenu === 'Menu Malam') sesiKey = 'Malam';
+
+          schedule[dateString][sesiKey].push(foodData);
         } else {
-            // Jika bukan Lauk (pendamping), tambahkan ke semua sesi
-            schedule[dateString].Pagi.push(foodData);
-            schedule[dateString].Siang.push(foodData);
-            schedule[dateString].Malam.push(foodData);
+          // Jika bukan Lauk (pendamping), tambahkan ke semua sesi
+          schedule[dateString].Pagi.push(foodData);
+          schedule[dateString].Siang.push(foodData);
+          schedule[dateString].Malam.push(foodData);
         }
       });
     });
@@ -251,32 +257,38 @@ export class MakananService {
       throw new NotFoundException('Makanan Tidak Ditemukan');
     }
 
-    // PERBAIKAN: Hanya Admin atau Kitchen yang bisa menghapus, terlepas dari siapa pembuatnya.
     if (role !== 'ADMIN' && role !== 'KITCHEN') {
       throw new ForbiddenException(
         'Hanya Admin atau Staf Dapur yang dapat menghapus data ini',
       );
     }
 
-    if (makanan.gambar) {
-      const filePath = join(process.cwd(), makanan.gambar.replace(/^\//, ''));
-      try {
-        await unlink(filePath);
-      } catch (err) {
-        console.warn('Gagal hapus gambar fisik:', err.message);
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Salin data makanan ke riwayat pesanan (PesananDetail)
+      await tx.pesananDetail.updateMany({
+        where: { makananId: id },
+        data: {
+          namaMakananHistory: makanan.namaMakanan,
+          jenisHistory: makanan.jenis,
+        },
+      });
+
+      // 2. Hapus file gambar jika ada
+      if (makanan.gambar) {
+        const filePath = join(process.cwd(), makanan.gambar.replace(/^\//, ''));
+        try {
+          await unlink(filePath);
+        } catch (err) {
+          console.warn('Gagal hapus gambar fisik:', err.message);
+        }
       }
-    }
 
-    // PERBAIKAN DI SINI: Hapus semua data terkait sebelum menghapus makanan utama
-    await this.prisma.$transaction([
-      // 1. Hapus semua relasi di tabel lain
-      this.prisma.pantangan.deleteMany({ where: { makananId: id } }),
-      this.prisma.pengecualianMakanan.deleteMany({ where: { makananId: id } }),
-      this.prisma.pesananDetail.deleteMany({ where: { makananId: id } }),
-    ]);
-
-    return this.prisma.makanan.delete({
-      where: { idMakanan: id },
+      // 3. Hapus makanan. Prisma akan menangani relasi `onDelete`
+      await tx.makanan.delete({
+        where: { idMakanan: id },
+      });
     });
+
+    return { message: `Makanan "${makanan.namaMakanan}" berhasil dihapus.` };
   }
 }
