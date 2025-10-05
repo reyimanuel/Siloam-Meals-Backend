@@ -9,6 +9,7 @@ import {
   UseInterceptors,
   UploadedFile,
   Req,
+  Query,
 } from '@nestjs/common';
 import { MakananService } from './makanan.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -22,6 +23,16 @@ import { MakananDto } from './custom.dto';
 @Controller('makanan')
 export class MakananController {
   constructor(private readonly makananService: MakananService) {}
+
+  // ENDPOINT BARU: Untuk mengambil jadwal menu bulanan
+  @Get('schedule')
+  @Roles(Role.ADMIN, Role.KITCHEN)
+  findMonthlySchedule(
+    @Query('month') month: string,
+    @Query('year') year: string,
+  ) {
+    return this.makananService.findMonthlySchedule(Number(month), Number(year));
+  }
 
   @Roles(Role.ADMIN, Role.KITCHEN)
   @Post()

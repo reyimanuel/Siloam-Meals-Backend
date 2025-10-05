@@ -6,9 +6,11 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { PesananService } from './pesanan.service';
-import { Public } from 'src/auth/roles.decorator';
+import { Public, Roles } from 'src/auth/roles.decorator';
+import { Role } from '@prisma/client';
 
 @Controller('pesanan')
 export class PesananController {
@@ -19,6 +21,17 @@ export class PesananController {
   // @Roles('KITCHEN', 'ADMIN') // Sebaiknya endpoint ini dilindungi
   async findForKitchen() {
     return this.pesananService.findForKitchen();
+  }
+
+  @Get('riwayat')
+  @Roles('KITCHEN', 'ADMIN')
+  // 2. Tambahkan parameter Query untuk menerima tanggal
+  async findHistory(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    // 3. Teruskan tanggal ke service
+    return this.pesananService.findAll(startDate, endDate);
   }
 
   // FUNGSI BARU: Endpoint untuk mendapatkan jumlah pesanan per sesi
@@ -56,10 +69,14 @@ export class PesananController {
     return this.pesananService.findPesananPasien(uuid);
   }
 
+  // Endpoint findAll yang lama sekarang secara internal akan digunakan oleh findHistory
   @Get()
   @Public()
-  async findAll() {
-    return this.pesananService.findAll();
+  async findAll(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.pesananService.findAll(startDate, endDate);
   }
 
   // @Get(':id')

@@ -3,6 +3,7 @@ import {
   NotFoundException,
   InternalServerErrorException,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
@@ -10,9 +11,93 @@ import { MakananDto } from './custom.dto'; // Import DTO baru
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 
+// Definisikan tipe data untuk jadwal di sini
+interface ScheduledFood {
+  id: number;
+  nama: string;
+  jenis: string;
+}
+
+interface DailySchedule {
+  Pagi: ScheduledFood[];
+  Siang: ScheduledFood[];
+  Malam: ScheduledFood[];
+  Lainnya: ScheduledFood[];
+}
+
 @Injectable()
 export class MakananService {
   constructor(private prisma: PrismaService) {}
+
+  // FUNGSI BARU: Logika untuk mengambil jadwal menu bulanan
+  async findMonthlySchedule(month: number, year: number) {
+    // Menentukan tanggal awal dan akhir dari bulan yang diminta
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    const scheduledFoods = await this.prisma.makanan.findMany({
+      where: {
+        tanggalTersedia: {
+          some: {
+            tanggal: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+        },
+      },
+      include: {
+        menu: { select: { namaMenu: true } }, // Untuk mengetahui sesi (Pagi/Siang/Malam)
+        tanggalTersedia: {
+          where: {
+            tanggal: {
+              gte: startDate,
+              lte: endDate,
+            },
+          },
+        },
+      },
+    });
+
+    // Mengelompokkan makanan berdasarkan tanggal dan sesi
+    const schedule = {};
+
+    scheduledFoods.forEach(food => {
+      food.tanggalTersedia.forEach(tgl => {
+        const dateString = tgl.tanggal.toISOString().split('T')[0]; // Format YYYY-MM-DD
+        
+        if (!schedule[dateString]) {
+          schedule[dateString] = { Pagi: [], Siang: [], Malam: [], Lainnya: [] };
+        }
+
+        const foodData = {
+            id: food.idMakanan,
+            nama: food.namaMakanan,
+            jenis: food.jenis
+        };
+        
+        // *** PERBAIKAN LOGIKA UTAMA DI SINI ***
+        if (food.jenis === 'Lauk') {
+            // Jika Lauk, kelompokkan berdasarkan menu spesifik
+            let sesiKey: keyof DailySchedule = 'Lainnya';
+            const namaMenu = food.menu?.namaMenu;
+
+            if (namaMenu === 'Menu Pagi') sesiKey = 'Pagi';
+            else if (namaMenu === 'Menu Siang') sesiKey = 'Siang';
+            else if (namaMenu === 'Menu Malam') sesiKey = 'Malam';
+            
+            schedule[dateString][sesiKey].push(foodData);
+        } else {
+            // Jika bukan Lauk (pendamping), tambahkan ke semua sesi
+            schedule[dateString].Pagi.push(foodData);
+            schedule[dateString].Siang.push(foodData);
+            schedule[dateString].Malam.push(foodData);
+        }
+      });
+    });
+
+    return schedule;
+  }
 
   async create(
     dto: MakananDto & { utamaDariIds?: number[] },

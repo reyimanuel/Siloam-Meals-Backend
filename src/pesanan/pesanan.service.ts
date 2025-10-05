@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Jenis, StatusPesanan } from '@prisma/client';
+import { Jenis, Prisma, StatusPesanan } from '@prisma/client';
 import { PrismaService } from 'nestjs-prisma';
 
 @Injectable()
@@ -303,10 +303,21 @@ export class PesananService {
     });
   }
 
-  async findAll() {
+  async findAll(startDate?: string, endDate?: string) {
+    // 2. Tambahkan parameter tanggal
+    const whereClause: Prisma.PesananWhereInput = {}; // 3. Buat objek whereClause
+
+    if (startDate && endDate) {
+      whereClause.tanggal = {
+        gte: new Date(startDate),
+        lte: new Date(endDate),
+      };
+    }
+
     const pesanan = await this.prisma.pesanan.findMany({
+      where: whereClause, // 4. Gunakan whereClause dalam query
       include: {
-        pasien: { select: { namaPasien: true, ruanganInap: true } }, // pasien bisa null
+        pasien: { select: { namaPasien: true, ruanganInap: true } },
         PesananDetail: {
           include: {
             makanan: true,
@@ -314,14 +325,12 @@ export class PesananService {
         },
       },
       orderBy: {
-        created_at: 'desc',
+        tanggal: 'desc', // Urutkan berdasarkan tanggal
       },
     });
 
-    // PERBAIKAN: Gunakan pemetaan untuk memastikan nama pasien selalu ada
     return pesanan.map((p) => ({
       ...p,
-      // Logika fallback ini akan digunakan oleh semua peran (Admin & Kitchen)
       namaPasien:
         p.pasien?.namaPasien ?? p.namaPasienHistory ?? 'Pasien Dihapus',
       ruanganInap: p.pasien?.ruanganInap ?? 'N/A',
