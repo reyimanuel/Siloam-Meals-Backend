@@ -1,204 +1,314 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from 'nestjs-prisma';
-import { Status } from '@prisma/client';
+import { Role, Status, StatusPesanan } from '@prisma/client';
 import * as QRCode from 'qrcode';
-import { CustomPasienDto } from './custom.dto';
+import { CustomPasienDto, UpdatePengecualianDto } from './custom.dto';
 import { randomUUID } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class PasienService {
-    constructor(private prisma: PrismaService, private jwtService: JwtService) { }
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
 
-    async create(data: CustomPasienDto, userId: number) {
-        // Validasi: semua field wajib diisi kecuali Pantangan
-        const { namaPasien, mr, tempatTidur, diagnosa } = data;
-        if (![namaPasien, mr, tempatTidur, diagnosa].every((f) =>
-            f !== undefined && f !== null && (typeof f === 'string' ? f.trim().length > 0 : true)
-        )) {
-            throw new BadRequestException('Semua data harus diisi kecuali data pantangan');
-        }
+  async create(data: CustomPasienDto, userId: number) {
+    // Validasi: semua field wajib diisi kecuali Pantangan
+    const { namaPasien, mr, ruanganInap, diagnosa } = data;
+    if (
+      ![namaPasien, mr, ruanganInap, diagnosa].every(
+        (f) =>
+          f !== undefined &&
+          f !== null &&
+          (typeof f === 'string' ? f.trim().length > 0 : true),
+      )
+    ) {
+      throw new BadRequestException(
+        'Semua data harus diisi kecuali data pantangan',
+      );
+    }
 
-        // Cek konflik MR terlebih dahulu
-        const existing = await this.prisma.pasien.findFirst({ where: { mr: data.mr } });
-        if (existing) {
-            throw new BadRequestException(`MR ${data.mr} sudah digunakan oleh pasien dengan nama ${existing.namaPasien}`);
-        }
+    // Cek konflik MR atau No KTP terlebih dahulu
+    const existing = await this.prisma.pasien.findFirst({
+      where: {
+        OR: [{ mr: data.mr }, ...(data.noKtp ? [{ noKtp: data.noKtp }] : [])],
+      },
+    });
+    if (existing) {
+      if (existing.mr === data.mr) {
+        throw new BadRequestException(
+          `MR ${data.mr} sudah digunakan oleh pasien dengan nama ${existing.namaPasien}`,
+        );
+      }
+      if (existing.noKtp === data.noKtp) {
+        throw new BadRequestException(
+          `No. KTP ${data.noKtp} sudah digunakan oleh pasien dengan nama ${existing.namaPasien}`,
+        );
+      }
+    }
 
-        const uuid = randomUUID();
+    const uuid = randomUUID();
 
-        try {
-            return await this.prisma.pasien.create({
-                data: {
-                    namaPasien: data.namaPasien,
-                    mr: data.mr,
-                    tempatTidur: data.tempatTidur,
-                    diagnosa: data.diagnosa,
-                    Pantangan: {
-                        create: data.Pantangan?.map((p) => ({
-                            namaPantangan: p.namaPantangan,
-                            makanan: {
-                                connect: { idMakanan: p.makananId },
-                            },
-                        })),
-                    },
-                    status: "PENDING",
-                    createdBy: userId,
-                    uuid,
-                    link: `${process.env.FRONTEND_URL}/pesanan/${uuid}`,
-                },
-                include: {
-                    user: { select: { namaUser: true } },
-                    Pantangan: { include: { makanan: true } },
-                },
-            });
-        } catch (err) {
-            // Tangani potensi error unique constraint dari Prisma (race condition)
-            if ((err)?.code === 'P2002') {
-                throw new BadRequestException('MR sudah digunakan');
+    try {
+      return await this.prisma.pasien.create({
+        data: {
+          namaPasien: data.namaPasien,
+          mr: data.mr,
+          ruanganInap: data.ruanganInap,
+          diagnosa: data.diagnosa,
+          noKtp: data.noKtp,
+          tanggalLahir: data.tanggalLahir ? new Date(data.tanggalLahir) : null,
+          Pantangan: {
+            create: data.Pantangan?.map((p) => ({
+              namaPantangan: p.namaPantangan,
+              makanan: {
+                connect: { idMakanan: p.makananId },
+              },
+            })),
+          },
+          status: 'PENDING',
+          createdBy: userId,
+          uuid,
+          link: `${process.env.FRONTEND_URL}/pesanan/${uuid}`,
+        },
+        include: {
+          user: { select: { namaUser: true } },
+          Pantangan: { include: { makanan: true } },
+        },
+      });
+    } catch (err) {
+      if (err?.code === 'P2002') {
+        throw new BadRequestException('MR atau No. KTP sudah digunakan');
+      }
+      throw err;
+    }
+  }
+
+  async count() {
+    const count = await this.prisma.pasien.count();
+    return { count };
+  }
+
+  async getPasienByLink(uuid: string) {
+    try {
+      const pasien = await this.prisma.pasien.findUnique({
+        where: { uuid },
+        include: { Pantangan: { include: { makanan: true } } },
+      });
+
+      if (!pasien) {
+        throw new NotFoundException(
+          `Pasien dengan uuid ${uuid} tidak ditemukan`,
+        );
+      }
+
+      return pasien;
+    } catch (err) {
+      throw new UnauthorizedException('error: ' + err.message);
+    }
+  }
+
+  async generateQr(uuid: string): Promise<{ qrCodeUrl: string }> {
+    const pasien = await this.prisma.pasien.findUnique({ where: { uuid } });
+    if (!pasien || !pasien.link) {
+      throw new NotFoundException(
+        `Pasien dengan uuid ${uuid} tidak ditemukan atau tidak memiliki link`,
+      );
+    }
+    const dataUrl = await QRCode.toDataURL(pasien.link);
+    return { qrCodeUrl: dataUrl };
+  }
+
+  async findAll() {
+    return this.prisma.pasien.findMany({
+      include: {
+        user: { select: { namaUser: true } },
+        Pantangan: { include: { makanan: true } },
+        PengecualianMakanan: { include: { makanan: true } }, // Sertakan data pengecualian
+      },
+    });
+  }
+
+  async findOne(id: number) {
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { idPasien: id },
+      include: {
+        user: { select: { namaUser: true } },
+        Pantangan: true,
+        PengecualianMakanan: { include: { makanan: true } }, // Sertakan data pengecualian
+      },
+    });
+    if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+    return pasien;
+  }
+
+  async update(id: number, dto: CustomPasienDto, role: string, userId: number) {
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { idPasien: id },
+    });
+    if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+
+    // Hanya Admin atau pembuat data yang boleh update
+    if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
+      throw new ForbiddenException(
+        'Hanya Admin atau pembuat data yang dapat mengubah data ini',
+      );
+    }
+
+    // Jika status masih PENDING atau ACTIVE -> ADMIN & NURSE boleh update
+    if (pasien.status === 'PENDING' || pasien.status === 'ACTIVE') {
+      if (!['ADMIN', 'NURSE'].includes(role)) {
+        throw new ForbiddenException(
+          'Hanya Admin atau Nurse yang dapat mengubah data',
+        );
+      }
+    }
+
+    return this.prisma.pasien.update({
+      where: { idPasien: id },
+      data: {
+        namaPasien: dto.namaPasien,
+        mr: dto.mr,
+        ruanganInap: dto.ruanganInap,
+        diagnosa: dto.diagnosa,
+        noKtp: dto.noKtp,
+        tanggalLahir: dto.tanggalLahir ? new Date(dto.tanggalLahir) : null,
+        Pantangan: dto.Pantangan
+          ? {
+              deleteMany: {},
+              create: dto.Pantangan.map((p) => ({
+                namaPantangan: p.namaPantangan,
+                makanan: { connect: { idMakanan: p.makananId } },
+              })),
             }
-            throw err;
-        }
+          : undefined,
+      },
+      include: {
+        Pantangan: { include: { makanan: true } },
+      },
+    });
+  }
+
+  // Fungsi baru untuk dietisien memfilter makanan
+  async updatePengecualian(
+    pasienId: number,
+    makananIds: number[],
+    userRole: string,
+  ) {
+    if (userRole !== Role.DIETISIEN) {
+      throw new ForbiddenException(
+        'Hanya Dietisien yang dapat mengatur pengecualian makanan.',
+      );
     }
 
-    async getPasienByLink(uuid: string) {
-        try {
-            const pasien = await this.prisma.pasien.findUnique({
-                where: { uuid },
-                include: { Pantangan: { include: { makanan: true } } },
-            });
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { idPasien: pasienId },
+    });
+    if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
 
-            if (!pasien) {
-                throw new NotFoundException(`Pasien dengan uuid ${uuid} tidak ditemukan`);
-            }
+    // Transaksi untuk menghapus pengecualian lama dan membuat yang baru
+    await this.prisma.$transaction([
+      // 1. Hapus semua pengecualian yang ada untuk pasien ini
+      this.prisma.pengecualianMakanan.deleteMany({
+        where: { pasienId: pasienId },
+      }),
+      // 2. Buat pengecualian baru berdasarkan daftar ID yang diberikan
+      this.prisma.pengecualianMakanan.createMany({
+        data: makananIds.map((makananId) => ({
+          pasienId: pasienId,
+          makananId: makananId,
+        })),
+      }),
+    ]);
 
-            return pasien;
-        } catch (err) {
-            throw new UnauthorizedException('error: ' + err.message);
-        }
+    return { message: 'Daftar pengecualian makanan berhasil diperbarui.' };
+  }
+
+  async validatePasien(id: number, userId: number) {
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { idPasien: id },
+    });
+    if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
+
+    if (pasien.validate === true) {
+      throw new BadRequestException('Pasien sudah divalidasi');
     }
 
-    async generateQr(uuid: string): Promise<{ qrCodeUrl: string }> {
-        const pasien = await this.prisma.pasien.findUnique({ where: { uuid } });
-        if (!pasien || !pasien.link) {
-            throw new NotFoundException(`Pasien dengan uuid ${uuid} tidak ditemukan atau tidak memiliki link`);
-        }
-        const dataUrl = await QRCode.toDataURL(pasien.link);
-        return { qrCodeUrl: dataUrl };
+    return this.prisma.pasien.update({
+      where: { idPasien: id },
+      data: { validate: true, validatedBy: userId },
+    });
+  }
+
+  async remove(id: number, role: string, userId: number) {
+    const pasien = await this.prisma.pasien.findUnique({
+      where: { idPasien: id },
+    });
+    if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+
+    if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
+      throw new ForbiddenException(
+        'Hanya Admin atau pembuat data yang dapat menghapus data ini',
+      );
     }
 
-    async findAll() {
-        return this.prisma.pasien.findMany({
-            include: {
-                user: { select: { namaUser: true } },
-                Pantangan: { include: { makanan: true } },
-            },
-        });
-    }
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Update semua pesanan terkait untuk menyimpan data history
+      await tx.pesanan.updateMany({
+        where: {
+          pasienId: id,
+        },
+        data: {
+          namaPasienHistory: pasien.namaPasien,
+          ruanganInapHistory: pasien.ruanganInap,
+          mrHistory: pasien.mr,
+          diagnosaHistory: pasien.diagnosa,
+        },
+      });
 
-    async findOne(id: number) {
-        const pasien = await this.prisma.pasien.findUnique({
-            where: { idPasien: id },
-            include: {
-                user: { select: { namaUser: true } },
-                Pantangan: true,
-            },
-        });
-        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
-        return pasien;
-    }
+      // 2. Ubah status pesanan PENDING menjadi BATAL
+      await tx.pesanan.updateMany({
+        where: {
+          pasienId: id,
+          status: StatusPesanan.PENDING,
+        },
+        data: {
+          status: StatusPesanan.BATAL,
+        },
+      });
 
-    async update(id: number, dto: CustomPasienDto, role: string, userId: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { idPasien : id } });
-        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
+      // 3. Hapus data anak yang harus hilang bersama pasien.
+      await tx.pantangan.deleteMany({ where: { pasienId: id } });
+      await tx.pengecualianMakanan.deleteMany({ where: { pasienId: id } });
+      await tx.feedback.deleteMany({ where: { pasienId: id } });
 
-        // Hanya Admin atau pembuat data yang boleh update
-        if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
-            throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat menghapus');
-        }
+      // 4. Terakhir, hapus data pasien.
+      // onDelete: SetNull pada skema akan otomatis mengubah pasienId di Pesanan menjadi null.
+      await tx.pasien.delete({ where: { idPasien: id } });
+    });
 
-        // Jika status masih PENDING -> ADMIN & NURSE boleh update
-        if (pasien.status === 'PENDING') {
-            if (!['ADMIN', 'NURSE'].includes(role)) {
-                throw new ForbiddenException('Hanya Admin atau Nurse yang dapat mengubah data');
-            }
-        } else if (pasien.status === 'ACTIVE') {
-            if (role !== 'ADMIN') {
-                throw new ForbiddenException('Hanya Admin yang dapat mengubah data');
-            }
-        }
-        return this.prisma.pasien.update({
-            where: { idPasien: id },
-            data: {
-                namaPasien: dto.namaPasien,
-                mr: dto.mr,
-                tempatTidur: dto.tempatTidur,
-                diagnosa: dto.diagnosa,
-                Pantangan: dto.Pantangan
-                    ? {
-                        deleteMany: {},
-                        create: dto.Pantangan.map((p) => ({
-                            namaPantangan: p.namaPantangan,
-                            makanan: { connect: { idMakanan: p.makananId } },
-                        })),
-                    }
-                    : undefined,
-            },
-            include: {
-                Pantangan: { include: { makanan: true } },
-            },
-        });
-    }
+    return {
+      message: `Pasien dengan ID ${id} berhasil dihapus. Riwayat pesanan telah diarsipkan.`,
+    };
+  }
 
-    async validatePasien(id: number, userId: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { idPasien: id } });
-        if (!pasien) throw new NotFoundException('Pasien tidak ditemukan');
+  async activatePendingPasien() {
+    const now = new Date();
+    const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 jam
 
-        if (pasien.status === 'ACTIVE') {
-            throw new BadRequestException('Pasien sudah aktif');
-        }
-
-        return this.prisma.pasien.update({
-            where: { idPasien: id },
-            data: { status: 'ACTIVE', validatedBy: userId },
-        });
-    }
-
-    async remove(id: number, role: string, userId: number) {
-        const pasien = await this.prisma.pasien.findUnique({ where: { idPasien: id } });
-        if (!pasien) throw new NotFoundException('Pasien Tidak Ditemukan');
-
-        if (!(role === 'ADMIN' || userId === pasien.createdBy)) {
-            throw new ForbiddenException('Hanya Admin atau pembuat data yang dapat menghapus data ini');
-        }
-
-        if (pasien.status === 'PENDING') {
-            if (!['ADMIN', 'NURSE'].includes(role)) {
-                throw new ForbiddenException('Hanya Admin atau Nurse yang dapat menghapus data ini');
-            }
-        } else if (pasien.status === 'ACTIVE') {
-            if (role !== 'ADMIN') {
-                throw new ForbiddenException('Status pasien sudah aktif, hanya Admin yang dapat menghapus data ini');
-            }
-        }
-
-        // Menghapus data pasien
-        await this.prisma.$transaction([
-            this.prisma.pantangan.deleteMany({ where: { pasienId: id } }),
-            this.prisma.pasien.delete({ where: { idPasien: id } }),
-        ]);
-    }
-
-    async activatePendingPasien() {
-        const now = new Date();
-        const threshold = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 jam
-
-        return this.prisma.pasien.updateMany({
-            where: {
-                status: Status.PENDING,
-                created_at: { lt: threshold },
-            },
-            data: { status: Status.ACTIVE },
-        });
-    }
+    return this.prisma.pasien.updateMany({
+      where: {
+        status: Status.PENDING,
+        created_at: { lt: threshold },
+      },
+      data: { status: Status.ACTIVE },
+    });
+  }
 }

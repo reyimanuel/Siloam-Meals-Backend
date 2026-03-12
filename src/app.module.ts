@@ -7,6 +7,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MakananModule } from './makanan/makanan.module';
 import { MenuModule } from './menu/menu.module';
 import { PesananModule } from './pesanan/pesanan.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -16,9 +17,9 @@ import { PesananModule } from './pesanan/pesanan.module';
     MakananModule,
     MenuModule,
     PesananModule,
+    FeedbackModule, // Tambahkan FeedbackModule di sini
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
- 
